@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import type { TransactionRequest, TransactionType } from '../validation/transactions.js';
 import type { TransactionQuery } from '../validation/queries.js';
+import type { DateRange } from '../validation/calendar.js';
 
 export interface Transaction extends TransactionRequest {
   id: number;
@@ -66,7 +67,22 @@ export function insertTransaction(db: Database.Database, input: TransactionReque
 }
 
 /** BigInt mode prevents aggregate precision loss before the service checks safety. */
-export function monetaryTotals(db: Database.Database): { type: TransactionType; total: bigint }[] {
-  return db.prepare('SELECT type, SUM(amount_cents) AS total FROM transactions GROUP BY type')
-    .safeIntegers(true).all() as { type: TransactionType; total: bigint }[];
+export function monetaryTotals(db: Database.Database, range?: DateRange): { type: TransactionType; total: bigint }[] {
+  const where = range ? 'WHERE transaction_date >= @startDate AND transaction_date <= @endDate' : '';
+  return db.prepare(`SELECT type, SUM(amount_cents) AS total FROM transactions ${where} GROUP BY type`)
+    .safeIntegers(true).all(range ?? {}) as { type: TransactionType; total: bigint }[];
+}
+
+/** Replace only editable fields, preserving identity/creation metadata. Caller owns atomicity. */
+export function updateTransactionRow(db: Database.Database, id: number, input: TransactionRequest): number {
+  return db.prepare(`UPDATE transactions SET type=@type, amount_cents=@amountCents,
+    category_id=@categoryId, transaction_date=@date, note=@note,
+    updated_at=CASE WHEN strftime('%Y-%m-%dT%H:%M:%fZ','now') > updated_at
+      THEN strftime('%Y-%m-%dT%H:%M:%fZ','now')
+      ELSE strftime('%Y-%m-%dT%H:%M:%fZ',updated_at,'+0.001 seconds') END
+    WHERE id=@id`).run({ ...input, id }).changes;
+}
+
+export function deleteTransactionRow(db: Database.Database, id: number): number {
+  return db.prepare('DELETE FROM transactions WHERE id = ?').run(id).changes;
 }

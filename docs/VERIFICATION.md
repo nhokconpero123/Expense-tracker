@@ -1,6 +1,6 @@
 # Verification Record
 
-Entries are historical records of each task's verification. The final T05 entry records the current transaction search/pagination work and test counts.
+Entries are historical records of each task's verification. The final T06 entry records the current transaction replacement/deletion work and test counts.
 
 ## T01
 
@@ -372,3 +372,34 @@ Write-Output "TEST_EXIT=$LASTEXITCODE"
 Read-only verification compares all application tables plus total_changes while query_only is enabled. A separate private-file WAL test installs a test-only SQL lower callback to commit a second connection's row during COUNT evaluation: first response keeps the old count/data snapshot, next response sees the new row. This hook is not in production code. All test databases are memory or registered fresh temporary files; connections close before fixture disposal. No development database was opened.
 
 Frontend build transformed 29 modules in 750 ms; artifact sizes unchanged. No warnings/failures were emitted by verification commands. Approved execution outside the sandbox was used for esbuild/native SQLite compatibility. No browser or live Vite proxy checks were performed. The 10,000-row correctness test is not a 300 ms performance benchmark: leading-wildcard searches, counts, and deep offsets can scan rows. Full Unicode case folding/normalization remain explicitly out of scope. No known blocking T05 issues. Stop for review before T06; no commit/push performed.
+
+## T06 — Transaction replacement and deletion
+
+Date: 2026-11-03 (America/Chicago). Prerequisite: ran `npm.cmd test` before editing, exit 0, 824 passed (71 frontend/753 backend), 0 failed/skipped. Reviewed T05 and project documents. Added routes/transaction-mutations.test.ts. Modified transaction repository/service/router and the previous unimplemented-endpoint assertion to retain only budget 404 checks. Updated README, architecture, plan, API examples and this record. No schemas, dependencies, validators, summaries, budgets or frontend features were added/changed.
+
+PUT validates the same complete editable body as POST, checks ID/category existence/type, updates only editable columns, checks affected old/new monthly totals plus all-time totals as BigInts, and reads back within one immediate transaction. Omitted note clears to empty. ID and createdAt are preserved. SQL updates updatedAt to current UTC time when later, otherwise increments the existing timestamp by one millisecond; repeated edits and a simulated future metadata timestamp/century rollover are tested without sleeps. DELETE atomically checks existence, deletes one row, and verifies absence before committing an empty 204. Missing rows return 404; any failed/ignored write, overflow, or readback error rolls back data/metadata/side effects. Safe error mapping reuses the existing boundary. There is no update/delete route logic in validation or repositories beyond the documented layer responsibilities.
+
+Exact root commands executed:
+
+```powershell
+npm.cmd run typecheck
+Write-Output "TYPECHECK_EXIT=$LASTEXITCODE"
+npm.cmd run build
+Write-Output "BUILD_EXIT=$LASTEXITCODE"
+npm.cmd test
+Write-Output "TEST_EXIT=$LASTEXITCODE"
+```
+
+| Check | Actual result |
+| --- | --- |
+| Typecheck | Exit 0; frontend/backend passed |
+| Build | Exit 0; frontend production assets and backend compilation passed |
+| Frontend tests | 1 file, 71 passed, 0 failed, 0 skipped |
+| Backend tests | 13 files, 826 passed, 0 failed, 0 skipped |
+| Combined tests | Exit 0; 14 files, 897 passed, 0 failed, 0 skipped |
+
+73 new mutation cases cover replacement identity/creation metadata, monotonic updatedAt, category/type/month switches, exact cent boundaries, omitted/max-length/NUL notes, missing required fields, malformed bodies/IDs, unknown fields, missing categories/records, category mismatch, parameter binding, invalid-edit rollback, safe monthly/all-time boundaries, old/new month coverage, SQL/readback failure rollback, ignored deletion rollback, database unavailability, empty successful 204, repeated deletion, preserved unrelated transactions/budgets, list/search changes, and persistent replacement/deletion after close/reopen.
+
+All mutation tests use memory or registered private temporary files. Oversized aggregate rows and failure triggers are test-only fixtures; CHECK constraints are restored before HTTP operations. Private files are disposed after closing connections. No development database was opened or modified. Existing T04 creation/detail and T05 list/search suites passed unchanged except for removing obsolete assertions that PUT/DELETE were unimplemented.
+
+Frontend build: 29 modules, 799 ms; artifact sizes unchanged. No warnings/failures occurred in verification commands. Approved execution outside the sandbox was used for esbuild/native SQLite compatibility. No browser/live proxy/performance benchmark was performed. Aggregate guards still scan totals; updatedAt is server-managed monotonic edit metadata and can be 1 ms ahead of wall time for rapid edits. No optimistic concurrency control is implemented (single-user last successful write wins). No known blocking T06 issues. Stop for review before T07; no commit/push performed.

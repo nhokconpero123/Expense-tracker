@@ -60,7 +60,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus documented database location and initialization command.
 
 ## T04 — Expose categories and transaction creation/detail
-- Implementation status: implemented and verified. NUL precheck passed before coding. Category listing/filtering and transaction create/detail have 77 isolated integration cases; T04 suite had 774 passed. See docs/API.md and docs/VERIFICATION.md. T05 preserves create/detail behavior; T06 has not started.
+- Implementation status: implemented and verified. NUL precheck passed before coding. Category listing/filtering and transaction create/detail have 77 isolated integration cases; T04 suite had 774 passed. See docs/API.md and docs/VERIFICATION.md. T05/T06 preserve create/detail behavior.
 - Depends on: T03.
 - Objective: deliver the first end-to-end ledger write/read API.
 - Expected files: `backend/src/repositories/{categories,transactions}.ts`, `backend/src/services/transactions.ts`, `backend/src/routes/{categories,transactions}.ts`, `backend/src/app.ts`, API tests.
@@ -69,7 +69,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus US-02 and relevant US-10 API criteria verified.
 
 ## T05 — Add ledger search and pagination
-- Implementation status: implemented and verified; awaiting review. T04 prerequisite suite passed (774 tests), then approved search scope was documented in all four planning documents before code changes. Adds 50 list/search integration cases; final suite 824 passed. See docs/API.md and docs/VERIFICATION.md. T06 has not started.
+- Implementation status: implemented and verified. T04 prerequisite suite passed (774 tests), then approved search scope was documented in all four planning documents before code changes. Adds 50 list/search integration cases; T05 suite had 824 passed. See docs/API.md and docs/VERIFICATION.md. T06 preserves list/search behavior.
 - Depends on: T04.
 - Objective: retrieve a deterministic, filterable transaction list.
 - Expected files: transaction repository/routes, list validators, integration tests.
@@ -78,6 +78,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus US-03/US-06 backend criteria verified.
 
 ## T06 — Add transaction replacement and deletion
+- Implementation status: implemented and verified; awaiting review. T05 prerequisite suite passed (824 tests). Atomic replacement/deletion and regression coverage add 73 mutation integration cases; final suite 897 passed. See docs/API.md and docs/VERIFICATION.md. T07 has not started.
 - Depends on: T04.
 - Objective: complete mutable ledger APIs.
 - Expected files: transaction repository/service/routes and integration tests.

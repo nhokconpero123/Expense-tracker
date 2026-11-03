@@ -1,7 +1,7 @@
 # Architecture
 
 ## 1. Status and components
-T01–T05 implement local foundations, validation/error handling, SQLite schema/catalog initialization, category listing, and transaction creation/detail/search/pagination. Other business APIs remain planned. The standalone server opens and initializes storage before listening and closes it on shutdown. App construction only accepts an injected database and never opens a file itself.
+T01–T06 implement local foundations, validation/error handling, SQLite schema/catalog initialization, category listing, and transaction create/detail/search/pagination/replacement/deletion. Other business APIs remain planned. The standalone server opens and initializes storage before listening and closes it on shutdown. App construction only accepts an injected database and never opens a file itself.
 
 ```text
 Browser: React + TypeScript + Tailwind + Recharts
@@ -36,7 +36,7 @@ Transaction notes reject NUL (U+0000) in the shared POST/full-PUT request valida
 ## 3. REST API contract
 Base path `/api`; JSON request/response bodies, except successful DELETE responses. This table is the planned contract.
 
-Implemented through T05: GET /health, GET /categories, POST /transactions, GET /transactions/:id, GET /transactions. Remaining table entries are future contracts. See docs/API.md for current examples and errors.
+Implemented through T06: GET /health, GET /categories, POST /transactions, GET /transactions/:id, GET /transactions, PUT /transactions/:id, DELETE /transactions/:id. Remaining table entries are future contracts. See docs/API.md for current examples and errors.
 
 | Method and path | Input | Success |
 | --- | --- | --- |
@@ -73,6 +73,7 @@ Validation and query rules:
 - T04 creates transactions through routes -> existing validation -> transaction service -> parameterized repositories. Category lookup, insert, aggregate guard and response readback share an immediate write transaction. Per-type all-time SUM values use better-sqlite3 BigInt mode before comparison with Number.MAX_SAFE_INTEGER; bounding both nonnegative totals also bounds category/date subsets and balances. Unsafe totals reject with 400 and rollback; SQL/readback failures reject with generic 500 and rollback. This scan-based guard favors correctness before future performance tuning. No production CHECK bypass or aggregate cache is added.
 - Read summary aggregates in one consistent read transaction. Budget list and spent calculations also use a consistent snapshot. Sequential API reads across different endpoints need not share a snapshot; after a mutation the UI refreshes all relevant views.
 - T05 list service opens a deferred read transaction before category validation and uses one filter definition for COUNT and SQL-paginated SELECT, keeping count/data consistent. Valid out-of-range offsets skip SELECT; offset and total-page arithmetic use BigInt to avoid precision loss for safe but very large page values. SQL sorting is transaction_date DESC, id DESC. Search uses built-in SQLite lower on both operands and escaped LIKE for ASCII folding plus literal Unicode; no schema/index changes or writes are performed. Queries containing NUL return no matches because notes cannot store it.
+- T06 PUT uses the same complete input validator as POST and parameterized UPDATE of editable fields only. An immediate transaction spans existence/category checks, update, old/new month per-type BigInt sums, all-time safety checks, and readback. ID/createdAt stay unchanged. updatedAt advances to current UTC time or previous timestamp plus 1 ms if the clock has not advanced. DELETE likewise uses an immediate transaction around existence/deletion/postcondition checks, returning empty 204 after commit; absent IDs return 404. Mutations roll back on SQL errors, ignored changes, unsafe totals, or failed readback. No summary/budget API or schema changes are introduced.
 - Use transactions for migrations, seed updates, budget upserts, and writes with aggregate guards. Seed by stable category keys without overwriting user data. Keep test database paths independent and explicitly guarded.
 - Implemented in T03: initialize migrations and seeding atomically; migration 001 creates the schema/indexes without resetting tables. Migration versions are immutable and contiguous; incompatible history is rejected. Default storage is backend/data/expense-tracker.sqlite for source and compiled startup. DATABASE_PATH relative values resolve from backend/. See README.md for initialization commands, constraints, limitations, and backup guidance.
 - Test connections default to memory, ignore DATABASE_PATH, and only open persistent files allocated by the registered temporary-file factory. Development connections are refused under Vitest/NODE_ENV=test. Realpath and file-link checks guard allocated paths; unrelated filenames are refused before opening. The server injects the initialized connection into createApp; health performs read-only schema/version/catalog checks and never exposes SQLite errors. Readiness is not an exhaustive integrity/schema-drift audit.

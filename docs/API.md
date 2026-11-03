@@ -1,4 +1,4 @@
-# Implemented API through T05
+# Implemented API through T06
 
 Local base URL: `http://127.0.0.1:3001/api`; Vite proxies `/api` from port 5173. These unauthenticated APIs are localhost-only. JSON objects use camelCase, monetary values use integer USD cents, and timestamps are UTC. Examples below assume a freshly seeded database; IDs/timestamps are illustrative, not fixed contract values. Discover category IDs through GET /categories.
 
@@ -84,6 +84,41 @@ A search with no matches returns:
 {"data":[],"meta":{"page":1,"pageSize":20,"total":0,"totalPages":0}}
 ```
 
+## PUT /transactions/:id
+
+Replace all editable fields. ID syntax and unknown query rejection match GET detail. Body validation is identical to POST: required type, amountCents, categoryId, and date; omitted note becomes empty. ID, createdAt, and updatedAt cannot be supplied in the body. The category must exist and match type. Changes to amount/type/category/month are supported. ID and createdAt are preserved; updatedAt advances monotonically in UTC, at least 1 ms after the previous value. Old/new monthly and all-time totals are checked as BigInts before commit. Invalid requests/categories/unsafe totals return 400, valid missing IDs 404, and unexpected failures safe 500 with rollback.
+
+```http
+PUT /api/transactions/1
+Content-Type: application/json
+
+{"type":"income","amountCents":29,"categoryId":1,"date":"2027-02-28"}
+```
+
+Illustrative 200 response (note was omitted and is cleared):
+
+```json
+{"data":{"id":1,"type":"income","amountCents":29,"categoryId":1,"categoryName":"Salary","date":"2027-02-28","note":"","createdAt":"2026-11-03T18:00:00.000Z","updatedAt":"2026-11-03T18:01:00.000Z"}}
+```
+
+## DELETE /transactions/:id
+
+Strictly validate the ID; no query fields are accepted. Successful deletion returns 204 with no response body. Missing or repeated deletion returns 404. Database/ignored-deletion failures return safe 500 and roll back. It never deletes other transactions or budget records.
+
+```http
+DELETE /api/transactions/1
+```
+
+```http
+HTTP/1.1 204 No Content
+```
+
+Subsequent GET/DELETE /api/transactions/1 returns:
+
+```json
+{"error":{"code":"NOT_FOUND","message":"Resource not found."}}
+```
+
 ## Errors and readiness
 
 All errors follow `{error:{code,message,fields?}}`. Client errors do not include SQL, filesystem paths, request values, notes, or stacks.
@@ -99,4 +134,4 @@ All errors follow `{error:{code,message,fields?}}`. Client errors do not include
 
 GET /health retains 200 `{data:{status:"ok"}}` for a ready database and generic 503 otherwise. Business routers receive the explicit database injected into createApp; constructing an app without a database opens no file and mounts no business routers. Existing server startup always initializes and injects storage before listening.
 
-PUT/DELETE, budgets, summary/analytics, and UI integrations are not implemented through T05.
+Budgets, summary/analytics, and UI integrations are not implemented through T06.
