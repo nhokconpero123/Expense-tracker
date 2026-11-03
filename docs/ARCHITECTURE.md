@@ -1,7 +1,7 @@
 # Architecture
 
 ## 1. Status and components
-T01 implements the local frontend/backend foundations. Business features, schema, and persistence below remain planned; startup and health checks do not open a database.
+T01–T03 implement local foundations, validation/error handling, and SQLite schema/catalog initialization. Business APIs remain planned. The standalone server opens and initializes storage before listening and closes it on shutdown. App construction only accepts an injected database and never opens a file itself.
 
 ```text
 Browser: React + TypeScript + Tailwind + Recharts
@@ -31,12 +31,14 @@ Relationships: a category has many transactions and many monthly budgets. A budg
 
 Use database CHECK constraints for enums, amount ranges, basic date/month shape, and note length. Validate actual calendar dates in the backend; SQLite text shape checks alone do not establish date validity. Use indexes on transaction_date and (category_id, transaction_date); the budget unique constraint supplies its lookup index. Revisit indexes only after measuring queries.
 
+Transaction notes reject NUL (U+0000) in the shared POST/full-PUT request validator and the existing SQLite CHECK. Trimming, the 500-character limit, and omitted-note normalization remain unchanged.
+
 ## 3. REST API contract
 Base path `/api`; JSON request/response bodies, except successful DELETE responses. This table is the planned contract.
 
 | Method and path | Input | Success |
 | --- | --- | --- |
-| GET /health | None | 200 `{data:{status:"ok"}}`; process readiness in T01, database readiness added in T03 |
+| GET /health | None | 200 `{data:{status:"ok"}}` when database-ready; 503 `{error:{code:"DATABASE_UNAVAILABLE",message:"Database is unavailable."}}` otherwise |
 | GET /categories | Optional type enum | 200 `{data: Category[]}` sorted by type, then name |
 | GET /transactions | Optional type, categoryId, startDate, endDate, q, page, pageSize | 200 `{data: Transaction[],meta:{page,pageSize,total,totalPages}}` |
 | GET /transactions/:id | Positive integer ID | 200 `{data: Transaction}` |
@@ -68,6 +70,8 @@ Validation and query rules:
 - Compute aggregates from persisted rows using integer SQL SUM and safe-integer checks. Within the write transaction, verify supported totals remain within JavaScript's safe integer range; rollback otherwise. Test this guard with controlled fixtures. Percentage is derived display data, rounded to one decimal; monetary data remains integer.
 - Read summary aggregates in one consistent read transaction. Budget list and spent calculations also use a consistent snapshot. Sequential API reads across different endpoints need not share a snapshot; after a mutation the UI refreshes all relevant views.
 - Use transactions for migrations, seed updates, budget upserts, and writes with aggregate guards. Seed by stable category keys without overwriting user data. Keep test database paths independent and explicitly guarded.
+- Implemented in T03: initialize migrations and seeding atomically; migration 001 creates the schema/indexes without resetting tables. Migration versions are immutable and contiguous; incompatible history is rejected. Default storage is backend/data/expense-tracker.sqlite for source and compiled startup. DATABASE_PATH relative values resolve from backend/. See README.md for initialization commands, constraints, limitations, and backup guidance.
+- Test connections default to memory, ignore DATABASE_PATH, and only open persistent files allocated by the registered temporary-file factory. Development connections are refused under Vitest/NODE_ENV=test. Realpath and file-link checks guard allocated paths; unrelated filenames are refused before opening. The server injects the initialized connection into createApp; health performs read-only schema/version/catalog checks and never exposes SQLite errors. Readiness is not an exhaustive integrity/schema-drift audit.
 - T01 selects Node 24 LTS (tested baseline 24.19.0; engine range >=24.19.0 <25, npm 11) and better-sqlite3 12, whose supported engine range includes Node 24. Its synchronous prepared-statement API suits short local queries. The native driver is installed, but no database is opened before T03. Exact resolved dependencies are in the root lockfile. See README.md for upstream references and native installation limitations.
 
 ## 5. Decisions and trade-offs
@@ -103,5 +107,5 @@ Common operational requirements:
 
 ## 8. Remaining review decisions
 - Choose deployment option A or B after the MVP; recommendation for a junior portfolio is A with public HTTP mutations disabled. Hosting provider, storage/cost, backup retention, and (for B) authentication/session approach require separate approval.
-- Resolved in T01: Node 24 LTS and better-sqlite3 12, with strict backend TypeScript. Database schema/connection work remains T03.
+- Resolved in T01/T03: Node 24 LTS, better-sqlite3 12, strict backend TypeScript, and initial schema/connection lifecycle. Future business APIs remain separate tasks.
 - Search semantics review: the earlier architecture limited case folding to ASCII, conflicting with the broader PRD FR-04/US-06 wording. The API contract now defers to the unchanged product requirement. Recommendation requiring approval: explicitly limit v1 case-insensitivity to ASCII, preserve literal Unicode substring matching, and defer full Unicode case folding. Alternatively, retain broader case-insensitivity and select/test a Unicode-aware implementation. Pending approval, do not weaken the PRD/story requirement or mark search fully accepted on ASCII-only evidence.

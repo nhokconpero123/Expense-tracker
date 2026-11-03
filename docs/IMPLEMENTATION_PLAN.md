@@ -15,7 +15,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus exact setup/test commands and environment requirements documented.
 
 ## T02a — Validate money and identifiers
-- Implementation status: implemented and verified; awaiting review. Pure validators use documented TypeError/RangeError exceptions; see README.md for input policies and docs/VERIFICATION.md for actual results. T02b–T02d have not started.
+- Implementation status: implemented and verified. Pure validators use documented TypeError/RangeError exceptions; see README.md for input policies and docs/VERIFICATION.md for actual results. T02a behavior is unchanged by T02b.
 - Depends on: T01.
 - Objective: establish exact USD conversion and primitive integer validation without a database.
 - Expected files: `backend/src/validation/money.ts`, `backend/src/validation/ids.ts`, their `.test.ts` files, `frontend/src/lib/money.ts`, related tests.
@@ -24,6 +24,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus isolated unit tests and documented parser behavior.
 
 ## T02b — Validate calendar values
+- Implementation status: implemented and verified. Includes date/month/range validation and inclusive month boundaries, with 156 calendar tests passing under UTC, America/Chicago, and Pacific/Kiritimati. See docs/VERIFICATION.md. T02b behavior is unchanged by T02c.
 - Depends on: T01.
 - Objective: make date/month and inclusive range rules independently testable.
 - Expected files: `backend/src/validation/calendar.ts`, `backend/src/validation/calendar.test.ts`.
@@ -32,6 +33,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus deterministic tests independent of machine timezone.
 
 ## T02c — Compose request schemas
+- Implementation status: implemented and verified. Pure transaction/budget/query validators plus a shared request-object guard add 247 passing tests. See README.md for contracts and docs/VERIFICATION.md for results. Pure validators are unchanged by T02d.
 - Depends on: T02a, T02b.
 - Objective: validate complete transaction/budget inputs and list filters before database access.
 - Expected files: `backend/src/validation/{transactions,budgets,queries}.ts`, corresponding `.test.ts` files.
@@ -40,6 +42,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus schema tests runnable without an application server or database.
 
 ## T02d — Standardize HTTP validation errors
+- Implementation status: implemented and verified. JSON parser, explicit validation adapter, safe error responses/logging, and not-found handling have 29 passing tests; see docs/VERIFICATION.md. T03 test harnesses now inject isolated databases for readiness.
 - Depends on: T02c.
 - Objective: integrate validators with a consistent safe HTTP boundary.
 - Expected files: `backend/src/middleware/errors.ts`, `backend/src/app.ts`, `backend/src/middleware/errors.test.ts`.
@@ -48,6 +51,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus exact status/envelope checks. T02 is complete only after T02a–T02d; all existing safety requirements remain mandatory.
 
 ## T03 — Create durable schema and category catalog
+- Implementation status: implemented and verified; awaiting review. Schema, atomic migrations/catalog seed, guarded test paths, persistent initialization command, and database readiness are covered by 75 new tests. See README.md and docs/VERIFICATION.md. T04 has not started.
 - Depends on: T02a–T02d.
 - Objective: establish constrained SQLite storage and safe initialization.
 - Expected files: `backend/src/db/connection.ts`, `backend/src/db/migrate.ts`, `backend/src/db/seed.ts`, `backend/src/db/migrations/*`, DB tests, `.env.example`, `README.md`.

@@ -20,6 +20,26 @@ describe('validateTransactionRequest', () => {
   it('rejects a note above the trimmed boundary', () => {
     expect(() => validateTransactionRequest({ ...valid, note: ` ${'x'.repeat(501)} ` })).toThrow(RangeError);
   });
+  // POST and full PUT deliberately share this complete editable-field validator.
+  for (const operation of ['create', 'full PUT replacement']) {
+    describe(`${operation} note validation`, () => {
+      it.each([
+        ['beginning', '\0lunch'], ['middle', 'lun\0ch'], ['end', 'lunch\0'],
+      ])('rejects NUL at the %s', (_position, note) => {
+        const validate = () => validateTransactionRequest({ ...valid, note });
+        expect(validate).toThrow(RangeError);
+        expect(validate).toThrow('note must not contain NUL (U+0000) characters');
+      });
+      it.each(['', '  lunch  ', 'x'.repeat(500), 'coffee\nwith friends', 'literal \\u0000 text'])(
+        'continues accepting valid note %j', (note) => {
+          expect(validateTransactionRequest({ ...valid, note })).toEqual({ ...valid, note: note.trim() });
+        },
+      );
+      it('continues normalizing an omitted note to empty', () => {
+        expect(validateTransactionRequest({ ...valid }).note).toBe('');
+      });
+    });
+  }
   it.each(['type', 'amountCents', 'categoryId', 'date'])('requires %s even for PUT', (field) => {
     const body: Record<string, unknown> = { ...valid };
     delete body[field];

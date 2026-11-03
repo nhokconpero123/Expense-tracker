@@ -18,7 +18,7 @@ People who track spending manually lack a reliable, quick view of where money go
 - One user and one local SQLite database; no user accounts. Both frontend and API listen only on loopback. Mobile layouts are evaluated through local browser viewport emulation; access from another device over LAN is outside MVP.
 - USD only. Amounts are positive integer cents; transaction type determines income or expense. Zero, negative, fractional-cent, and unsafe integer amounts are rejected.
 - An amount must be between 1 and 100,000,000 cents ($1,000,000.00). This same limit applies to budgets.
-- A transaction has type, amount, category, transaction date, and optional note (maximum 500 characters after trimming).
+- A transaction has type, amount, category, transaction date, and optional note (maximum 500 characters after trimming; NUL/U+0000 characters are rejected by both request validation and storage).
 - Transaction dates are valid calendar dates in `YYYY-MM-DD`, years 1900–9999. Future dates are allowed and count in their assigned month; this is a record ledger, not a forecast engine.
 - Months use `YYYY-MM`. The UI defaults to the user's current local calendar month. The server receives an explicit month and never infers it from UTC timestamps.
 - Budget and reporting months use the same year range as transaction dates: 1900–9999.

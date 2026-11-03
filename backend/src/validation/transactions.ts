@@ -34,6 +34,7 @@ export function validateTransactionRequest(input: unknown): TransactionRequest {
   if (Object.hasOwn(body, 'note')) {
     if (typeof body['note'] !== 'string') throw new TypeError('note must be a string');
     note = body['note'].trim();
+    if (note.includes('\0')) throw new RangeError('note must not contain NUL (U+0000) characters');
     if (note.length > 500) throw new RangeError('note must be at most 500 characters after trimming');
   }
   return {

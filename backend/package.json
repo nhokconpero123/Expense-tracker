@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "start": "node --env-file-if-exists=.env dist/server.js"
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "db:init": "tsx --env-file-if-exists=.env src/db/cli.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.0.0",

@@ -4,6 +4,8 @@ import type { Request, Response } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.js';
+import { openDatabase } from '../db/connection.js';
+import { initializeDatabase } from '../db/initialize.js';
 import { validateMoneyCents } from '../validation/money.js';
 import { validateTransactionRequest } from '../validation/transactions.js';
 import { errorHandler, NotFoundError, notFound, RequestValidationError, validateInput } from './errors.js';
@@ -24,7 +26,9 @@ app.use(notFound);
 app.use(errorHandler);
 
 const server = createServer(app);
-const productionServer = createServer(createApp());
+const database = openDatabase({ mode: 'test' });
+initializeDatabase(database);
+const productionServer = createServer(createApp(database));
 
 beforeAll(async () => {
   for (const listener of [server, productionServer]) {
@@ -41,6 +45,7 @@ afterAll(async () => {
       listener.close((error) => error ? reject(error) : resolve());
     });
   }
+  database.close();
 });
 
 function expectSafe(response: request.Response, status: number, code: string, message: string) {
