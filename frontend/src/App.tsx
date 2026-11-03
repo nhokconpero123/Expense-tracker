@@ -1,16 +1,25 @@
+import { Navbar } from './components/Navbar';
+import { MonthProvider } from './context/MonthContext';
+import { Dashboard } from './pages/Dashboard';
+
 export default function App() {
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-20 text-slate-100">
-      <div className="mx-auto max-w-2xl">
-        <p className="text-sm font-semibold tracking-widest text-emerald-400">EXPENSE TRACKER</p>
-        <h1 className="mt-4 text-4xl font-semibold tracking-tight">A clearer view of your money.</h1>
-        <p className="mt-6 text-lg leading-relaxed text-slate-300">
-          Your personal income, expenses, and monthly budgets in one place.
-        </p>
-        <p className="mt-8 rounded-xl border border-slate-700 p-5 text-slate-300">
-          The local project foundation is ready. Transaction and budget features are coming next.
-        </p>
+    <MonthProvider>
+      <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100 antialiased overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
+        <Navbar />
+
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <Dashboard />
+        </main>
+
+        <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-400">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <p>
+              Expense Tracker &mdash; Full-Stack Personal Finance Portfolio MVP
+            </p>
+          </div>
+        </footer>
       </div>
-    </main>
+    </MonthProvider>
   );
 }

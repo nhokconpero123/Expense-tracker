@@ -1,5 +1,48 @@
 import { describe, expect, it } from 'vitest';
-import { parseUsdToCents } from './money';
+import { formatCentsToUsd, parseUsdToCents } from './money';
+
+describe('formatCentsToUsd', () => {
+  it.each([
+    [0, '$0.00'],
+    [-0, '$0.00'],
+    [1, '$0.01'],
+    [99, '$0.99'],
+    [100, '$1.00'],
+    [1234, '$12.34'],
+    [7550, '$75.50'],
+    [200000, '$2,000.00'],
+    [192450, '$1,924.50'],
+    [99999999, '$999,999.99'],
+    [100000000, '$1,000,000.00'],
+  ] as const)('formats %i cents as %s', (cents, expected) => {
+    expect(formatCentsToUsd(cents)).toBe(expected);
+  });
+
+  it.each([
+    [-1, '-$0.01'],
+    [-99, '-$0.99'],
+    [-100, '-$1.00'],
+    [-7550, '-$75.50'],
+    [-192450, '-$1,924.50'],
+    [-100000000, '-$1,000,000.00'],
+  ] as const)('formats negative balance %i cents as %s', (cents, expected) => {
+    expect(formatCentsToUsd(cents)).toBe(expected);
+  });
+
+  it.each([NaN, Infinity, -Infinity, 1.5, -0.5, 9007199254740992])(
+    'rejects non-safe-integer %s',
+    (input) => {
+      expect(() => formatCentsToUsd(input)).toThrow(RangeError);
+    },
+  );
+
+  it.each(['100', null, undefined, {}, [], true, false, 100n])(
+    'rejects non-number %s',
+    (input) => {
+      expect(() => formatCentsToUsd(input as unknown as number)).toThrow(TypeError);
+    },
+  );
+});
 
 describe('parseUsdToCents', () => {
   it.each([
