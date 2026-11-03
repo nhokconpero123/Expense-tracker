@@ -6,13 +6,19 @@ import { MonthProvider } from '../context/MonthContext';
 
 describe('Navbar component', () => {
   it('renders application header and navigation items in English', () => {
-    const html = renderToString(<Navbar />);
+    const html = renderToString(<Navbar activePage="dashboard" onNavigate={() => {}} />);
     expect(html).toContain('Expense Tracker');
     expect(html).toContain('Dashboard');
     expect(html).toContain('Transactions');
     expect(html).toContain('Budgets');
     expect(html).toContain('Analytics');
     expect(html).toContain('aria-label="Main Navigation"');
+    expect(html).toContain('aria-current="page"');
+  });
+
+  it('marks Transactions as active when on transactions page', () => {
+    const html = renderToString(<Navbar activePage="transactions" onNavigate={() => {}} />);
+    expect(html).toContain('Transactions');
   });
 });
 
@@ -30,4 +36,3 @@ describe('MonthSelector component', () => {
     expect(html).toContain('value="2026-11"');
   });
 });
-

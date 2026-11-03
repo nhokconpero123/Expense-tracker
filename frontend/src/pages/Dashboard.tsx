@@ -18,8 +18,8 @@ export function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Page Header: stacks on mobile/tablet (<1024px), side-by-side on desktop */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">
             Monthly Dashboard
@@ -29,15 +29,15 @@ export function Dashboard() {
           </p>
         </div>
 
-        {/* Controls: Month selector and manual refresh */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Controls: Month selector and manual refresh logically grouped */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           <MonthSelector />
 
           <button
             type="button"
             onClick={refresh}
             disabled={isLoading}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label="Refresh summary data"
             title="Refresh summary data"
           >
@@ -122,9 +122,9 @@ export function Dashboard() {
         </section>
       )}
 
-      {/* Monthly Summary Cards Grid */}
+      {/* Monthly Summary Cards: 1 col on mobile, 2 cols on tablet (Net Balance spanning), 3 cols on desktop */}
       <section aria-label="Monthly Financial Totals">
-        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
           <SummaryCard
             title="Monthly Income"
             amountCents={summary?.incomeCents ?? null}
@@ -139,13 +139,15 @@ export function Dashboard() {
             isLoading={isLoading}
             subtext="Total spending"
           />
-          <SummaryCard
-            title="Net Balance"
-            amountCents={summary?.balanceCents ?? null}
-            type="balance"
-            isLoading={isLoading}
-            subtext="Income minus expenses"
-          />
+          <div className="sm:col-span-2 lg:col-span-1">
+            <SummaryCard
+              title="Net Balance"
+              amountCents={summary?.balanceCents ?? null}
+              type="balance"
+              isLoading={isLoading}
+              subtext="Income minus expenses"
+            />
+          </div>
         </div>
       </section>
 
@@ -248,4 +250,3 @@ export function Dashboard() {
     </div>
   );
 }
-

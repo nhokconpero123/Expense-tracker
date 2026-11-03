@@ -79,25 +79,25 @@ export function SummaryCard({
       className="relative flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900/80 p-5 sm:p-6 shadow-sm transition-colors hover:border-slate-700/80"
       aria-labelledby={`card-title-${type}`}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2.5 sm:gap-3">
         <span
           id={`card-title-${type}`}
-          className="text-xs sm:text-sm font-medium uppercase tracking-wider text-slate-400"
+          className="text-xs sm:text-sm font-medium uppercase tracking-wider text-slate-400 whitespace-nowrap"
         >
           {title}
         </span>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {statusBadgeText && (
             <span
-              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusBadgeClasses}`}
+              className={`rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${statusBadgeClasses}`}
             >
               {statusBadgeText}
             </span>
           )}
 
           <div
-            className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconBgClass}`}
+            className={`flex h-8 w-8 items-center justify-center rounded-lg shrink-0 ${iconBgClass}`}
             aria-hidden="true"
           >
             {type === 'income' && (
@@ -166,4 +166,3 @@ export function SummaryCard({
     </article>
   );
 }
-

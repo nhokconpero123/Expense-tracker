@@ -1,21 +1,28 @@
 import { useEffect, useState } from 'react';
 
+export type AppPage = 'dashboard' | 'transactions';
+
+export interface NavbarProps {
+  activePage: AppPage;
+  onNavigate: (page: AppPage) => void;
+}
+
 interface NavItem {
-  id: string;
+  id: AppPage | 'budgets' | 'analytics';
   label: string;
   href: string;
   badge?: string;
-  isActive?: boolean;
+  isAvailable: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', href: '#dashboard', isActive: true },
-  { id: 'transactions', label: 'Transactions', href: '#transactions', badge: 'T10' },
-  { id: 'budgets', label: 'Budgets', href: '#budgets', badge: 'T12' },
-  { id: 'analytics', label: 'Analytics', href: '#analytics', badge: 'T13' },
+  { id: 'dashboard', label: 'Dashboard', href: '#dashboard', isAvailable: true },
+  { id: 'transactions', label: 'Transactions', href: '#transactions', isAvailable: true },
+  { id: 'budgets', label: 'Budgets', href: '#budgets', badge: 'T12', isAvailable: false },
+  { id: 'analytics', label: 'Analytics', href: '#analytics', badge: 'T13', isAvailable: false },
 ];
 
-export function Navbar() {
+export function Navbar({ activePage, onNavigate }: NavbarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Close mobile menu on Escape key
@@ -68,16 +75,22 @@ export function Navbar() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1" aria-label="Main Navigation">
             {NAV_ITEMS.map((item) => {
-              if (item.isActive) {
+              if (item.isAvailable) {
+                const isActive = activePage === item.id;
                 return (
-                  <a
+                  <button
                     key={item.id}
-                    href={item.href}
-                    aria-current="page"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-800 px-3 py-2 text-sm font-medium text-slate-100 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                    type="button"
+                    onClick={() => onNavigate(item.id as AppPage)}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+                      isActive
+                        ? 'border border-slate-700/80 bg-slate-800 text-slate-100 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    }`}
                   >
                     <span>{item.label}</span>
-                  </a>
+                  </button>
                 );
               }
               return (
@@ -150,26 +163,36 @@ export function Navbar() {
         >
           <nav className="flex flex-col gap-1" aria-label="Mobile Navigation">
             {NAV_ITEMS.map((item) => {
-              if (item.isActive) {
+              if (item.isAvailable) {
+                const isActive = activePage === item.id;
                 return (
-                  <a
+                  <button
                     key={item.id}
-                    href={item.href}
-                    aria-current="page"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex min-h-[44px] items-center justify-between rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-base font-medium text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                    type="button"
+                    onClick={() => {
+                      onNavigate(item.id as AppPage);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`flex min-h-[44px] items-center justify-between rounded-lg px-4 py-2.5 text-base font-medium text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+                      isActive
+                        ? 'border border-slate-700 bg-slate-800 text-slate-100'
+                        : 'text-slate-300 hover:bg-slate-800/60'
+                    }`}
                   >
                     <span>{item.label}</span>
-                    <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-400 font-normal">
-                      Active
-                    </span>
-                  </a>
+                    {isActive && (
+                      <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-400 font-normal">
+                        Active
+                      </span>
+                    )}
+                  </button>
                 );
               }
               return (
                 <div
                   key={item.id}
-                  className="flex min-h-[44px] items-center justify-between rounded-lg px-4 py-2.5 text-base font-medium text-slate-500"
+                  className="flex min-h-[44px] items-center justify-between rounded-lg px-4 py-2.5 text-base font-medium text-slate-400"
                 >
                   <span>{item.label}</span>
                   {item.badge && (
@@ -186,4 +209,3 @@ export function Navbar() {
     </header>
   );
 }
-

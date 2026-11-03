@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatDateDisplay,
   formatMonthDisplay,
   getCurrentLocalMonth,
+  getTodayLocalDate,
+  isValidDate,
   isValidMonth,
   shiftMonth,
 } from './date';
@@ -25,19 +28,53 @@ describe('isValidMonth', () => {
   });
 });
 
+describe('isValidDate', () => {
+  it.each([
+    ['1900-01-01', true],
+    ['2026-11-03', true],
+    ['2024-02-29', true], // Leap year
+    ['2023-02-29', false], // Non-leap year
+    ['2026-04-31', false], // April has 30 days
+    ['2026-04-30', true],
+    ['9999-12-31', true],
+    ['1899-12-31', false],
+    ['10000-01-01', false],
+    ['2026-00-01', false],
+    ['2026-11-00', false],
+    ['2026-11-32', false],
+    ['invalid', false],
+  ])('evaluates isValidDate(%j) as %s', (input, expected) => {
+    expect(isValidDate(input)).toBe(expected);
+  });
+});
+
 describe('getCurrentLocalMonth', () => {
   it('formats reference local date into YYYY-MM', () => {
-    // Construct local dates (year, monthIndex, day)
-    const d1 = new Date(2026, 10, 3); // Nov is month 10
+    const d1 = new Date(2026, 10, 3);
     expect(getCurrentLocalMonth(d1)).toBe('2026-11');
 
-    const d2 = new Date(2025, 0, 15); // Jan is month 0
+    const d2 = new Date(2025, 0, 15);
     expect(getCurrentLocalMonth(d2)).toBe('2025-01');
   });
 
   it('defaults to current date without error', () => {
     const current = getCurrentLocalMonth();
     expect(isValidMonth(current)).toBe(true);
+  });
+});
+
+describe('getTodayLocalDate', () => {
+  it('formats reference local date into YYYY-MM-DD', () => {
+    const d1 = new Date(2026, 10, 3);
+    expect(getTodayLocalDate(d1)).toBe('2026-11-03');
+
+    const d2 = new Date(2025, 0, 5);
+    expect(getTodayLocalDate(d2)).toBe('2025-01-05');
+  });
+
+  it('defaults to today without error', () => {
+    const today = getTodayLocalDate();
+    expect(isValidDate(today)).toBe(true);
   });
 });
 
@@ -80,3 +117,16 @@ describe('formatMonthDisplay', () => {
   });
 });
 
+describe('formatDateDisplay', () => {
+  it.each([
+    ['2026-11-03', 'Nov 3, 2026'],
+    ['2026-01-15', 'Jan 15, 2026'],
+    ['2024-02-29', 'Feb 29, 2024'],
+  ])('formats %s as %s', (date, expected) => {
+    expect(formatDateDisplay(date)).toBe(expected);
+  });
+
+  it('rejects invalid date string', () => {
+    expect(() => formatDateDisplay('invalid-date')).toThrow(RangeError);
+  });
+});

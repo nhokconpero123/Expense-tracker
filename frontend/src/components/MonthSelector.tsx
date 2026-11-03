@@ -8,7 +8,7 @@ export function MonthSelector() {
 
   return (
     <div
-      className="flex flex-wrap items-center gap-2 sm:gap-3"
+      className="inline-flex flex-wrap items-center gap-2 sm:gap-2.5"
       role="region"
       aria-label="Month selection"
     >
@@ -34,9 +34,9 @@ export function MonthSelector() {
           </svg>
         </button>
 
-        <div className="px-2.5 sm:px-3 text-center min-w-[130px] sm:min-w-[150px]">
+        <div className="px-2.5 sm:px-3 text-center min-w-[125px] sm:min-w-[145px]">
           <span
-            className="text-xs sm:text-sm font-semibold tracking-wide text-slate-100"
+            className="text-xs sm:text-sm font-semibold tracking-wide text-slate-100 whitespace-nowrap"
             aria-live="polite"
           >
             {formatMonthDisplay(month)}
@@ -64,42 +64,44 @@ export function MonthSelector() {
         </button>
       </div>
 
-      {/* Quick Jump to Current Month */}
-      {!isCurrentMonth ? (
-        <button
-          type="button"
-          onClick={goToCurrentMonth}
-          className="inline-flex h-9 items-center rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 sm:px-3 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-        >
-          Current Month
-        </button>
-      ) : (
-        <span className="hidden sm:inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-1 text-xs font-medium text-emerald-400">
-          Current Month
-        </span>
-      )}
+      {/* Auxiliary Month Controls Group */}
+      <div className="inline-flex items-center gap-2">
+        {/* Quick Jump to Current Month */}
+        {!isCurrentMonth ? (
+          <button
+            type="button"
+            onClick={goToCurrentMonth}
+            className="inline-flex h-9 items-center rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 sm:px-3 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 whitespace-nowrap"
+          >
+            Current Month
+          </button>
+        ) : (
+          <span className="inline-flex h-9 items-center rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-2.5 sm:px-3 text-xs font-medium text-emerald-400 whitespace-nowrap">
+            Current Month
+          </span>
+        )}
 
-      {/* Native Month Picker for Direct Selection */}
-      <div className="relative inline-flex items-center">
-        <label htmlFor="month-picker" className="sr-only">
-          Jump to specific month
-        </label>
-        <input
-          id="month-picker"
-          type="month"
-          value={month}
-          min="1900-01"
-          max="9999-12"
-          onChange={(event) => {
-            if (event.target.value) {
-              setMonth(event.target.value);
-            }
-          }}
-          className="h-9 cursor-pointer rounded-lg border border-slate-700 bg-slate-800/80 px-2 sm:px-2.5 text-xs text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-          title="Pick calendar month"
-        />
+        {/* Native Month Picker for Direct Selection */}
+        <div className="relative inline-flex items-center">
+          <label htmlFor="month-picker" className="sr-only">
+            Jump to specific month
+          </label>
+          <input
+            id="month-picker"
+            type="month"
+            value={month}
+            min="1900-01"
+            max="9999-12"
+            onChange={(event) => {
+              if (event.target.value) {
+                setMonth(event.target.value);
+              }
+            }}
+            className="h-9 cursor-pointer rounded-lg border border-slate-700 bg-slate-800/80 px-2 sm:px-2.5 text-xs text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            title="Pick calendar month"
+          />
+        </div>
       </div>
     </div>
   );
 }
-

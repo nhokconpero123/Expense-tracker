@@ -7,6 +7,8 @@ export interface MonthContextValue {
   goToPreviousMonth: () => void;
   goToNextMonth: () => void;
   goToCurrentMonth: () => void;
+  summaryRevision: number;
+  notifyTransactionCreated: () => void;
 }
 
 export const MonthContext = createContext<MonthContextValue | null>(null);
@@ -23,6 +25,7 @@ export function MonthProvider({ children, initialMonth }: MonthProviderProps) {
     }
     return getCurrentLocalMonth();
   });
+  const [summaryRevision, setSummaryRevision] = useState<number>(0);
 
   const setMonth = (newMonth: string) => {
     if (isValidMonth(newMonth)) {
@@ -42,6 +45,10 @@ export function MonthProvider({ children, initialMonth }: MonthProviderProps) {
     setMonthState(getCurrentLocalMonth());
   };
 
+  const notifyTransactionCreated = () => {
+    setSummaryRevision((prev) => prev + 1);
+  };
+
   const value = useMemo(
     () => ({
       month,
@@ -49,8 +56,10 @@ export function MonthProvider({ children, initialMonth }: MonthProviderProps) {
       goToPreviousMonth,
       goToNextMonth,
       goToCurrentMonth,
+      summaryRevision,
+      notifyTransactionCreated,
     }),
-    [month],
+    [month, summaryRevision],
   );
 
   return <MonthContext.Provider value={value}>{children}</MonthContext.Provider>;
@@ -63,4 +72,3 @@ export function useMonth(): MonthContextValue {
   }
   return context;
 }
-
