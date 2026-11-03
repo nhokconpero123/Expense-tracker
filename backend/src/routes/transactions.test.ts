@@ -163,8 +163,7 @@ describe('POST /api/transactions and GET /api/transactions/:id', () => {
     expect(response.body.data.note).toBe(note);
     expect(count()).toBe(1);
   });
-  it('keeps list, update, delete and budget APIs unimplemented', async () => {
-    expect((await request(server).get('/api/transactions')).status).toBe(404);
+  it('keeps update, delete and budget APIs unimplemented', async () => {
     expect((await request(server).put('/api/transactions/1').send(valid())).status).toBe(404);
     expect((await request(server).delete('/api/transactions/1')).status).toBe(404);
     expect((await request(server).get('/api/budgets')).status).toBe(404);

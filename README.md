@@ -1,6 +1,6 @@
 # Expense Tracker
 
-A single-user, localhost-only personal finance application. T01–T03 provide the React landing screen, input validation, safe HTTP errors, and durable SQLite schema/category initialization. Health now verifies database readiness. Transaction/budget business endpoints, dashboard features, and authentication are not implemented.
+A single-user, localhost-only personal finance application. T01–T05 provide the React landing screen, input validation, safe HTTP errors, durable SQLite storage, categories, and transaction creation/detail/search/pagination APIs. Update/delete, budgets, dashboard features, and authentication remain unimplemented. See [docs/API.md](docs/API.md) for the implemented contracts and examples.
 
 ## Prerequisites and choices
 
@@ -118,5 +118,17 @@ Both responses should be `{"data":{"status":"ok"}}`; both listeners must use `12
 - No totals or balance columns, CRUD endpoints, or reset/delete migration commands are introduced. Keep applied migration files immutable; create a new reviewed migration for future changes. Migration history is version-based, without checksums or full schema-drift repair. Backups/recovery remain an operator responsibility; do not delete an incompatible database to make startup pass.
 - Test mode ignores DATABASE_PATH and defaults to `:memory:`. File tests must call `createTestDatabaseFile()` and pass its registered filename to `openDatabase({mode:'test',filename})`; arbitrary paths (including development paths) are refused before SQLite opens them. Development mode is forbidden when NODE_ENV=test or VITEST is set. Allocated file paths validate real parent directories and reject symlinks/hardlinks. Close test connections before disposing their private files; cleanup is non-recursive and refuses unexpected artifacts.
 - The default development directory is ignored by Git, as are common SQLite filenames/journals/WAL/SHM files. Tests never read `.env` or use an existing development database. The synthetic persistence fixtures are separate from normal development storage. Path guards protect the supported connection API, not deliberate direct imports of the underlying driver.
+
+## T04 API layers and aggregate safety
+
+Routes validate requests through T02 utilities, then call parameterized repositories and the transaction service. Creation checks category existence/type, inserts, checks aggregate safety, and reads the response in one immediate SQLite transaction. A category failure or unsafe total becomes a safe HTTP 400; absent transaction detail returns 404; unexpected database failures remain generic 500s. Unknown query fields are rejected. Express route-decoding URI errors marked 400 are also safely normalized without reflecting the invalid path.
+
+All-time income and expense sums are read as BigInts and independently limited to Number.MAX_SAFE_INTEGER. Positive cents mean each category/date subset is bounded by its type's all-time sum; balances are also safe when both nonnegative type totals are bounded. The guard does not combine income and expenses into an unnecessarily restrictive single sum. Failed writes/readback roll back before any Location header or success response. Tests use deliberately oversized stored amounts only as controlled fixtures in private databases; schema CHECKs remain enabled during HTTP requests. No aggregate cache, schema changes, or production bypass exists. The guard currently scans totals on every creation; optimization is deferred until measurements justify it.
+
+## T05 list/search behavior
+
+GET /api/transactions reuses the existing query validator. All supplied filters combine with AND; date endpoints are inclusive. A deferred read transaction spans category existence checking, matching COUNT, and page data. COUNT and SELECT use the same parameterized filters/join, and SQL applies LIMIT/OFFSET with date DESC/id DESC ordering. Pagination arithmetic uses BigInt before safe conversion to JSON numbers; valid huge pages return empty data with accurate metadata, not rounded offsets. Existing but type-incompatible categories return no matches; nonexistent categories return 400.
+
+Approved MVP search is ASCII case-insensitive only. SQLite's built-in lower is applied to notes and the bound pattern; `%`, `_`, and backslash are escaped for literal LIKE matching. Unicode characters match literally, without Unicode case folding or normalization: `LUNCH` matches `lunch`, `CAFé` matches `Café`, but `CAFÉ` does not match `Café`. Blank trimmed q means no search. A query containing NUL returns no matches because stored notes prohibit NUL; this avoids SQLite LIKE truncation. Full Unicode case-insensitive support is not claimed. Leading-wildcard search and large offsets can require scans; the 10,000-row test establishes correctness, not the separate aspirational 300 ms performance target.
 
 Current verification results and exact commands are recorded in [docs/VERIFICATION.md](docs/VERIFICATION.md). Planning documents live in `docs/`; follow [AGENTS.md](AGENTS.md). Deployment remains a separate, approval-gated post-MVP phase.

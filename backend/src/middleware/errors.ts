@@ -74,6 +74,11 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, _request, resp
     status = 404;
     code = 'NOT_FOUND';
     message = 'Resource not found.';
+  } else if (error instanceof URIError && 'status' in error && error.status === 400) {
+    // Express marks malformed percent-encoded route parameters as bad requests.
+    status = 400;
+    code = 'VALIDATION_ERROR';
+    message = 'Request validation failed.';
   } else if (error instanceof Error && 'type' in error && 'status' in error) {
     if (error.type === 'entity.too.large' && error.status === 413) {
       status = 413;

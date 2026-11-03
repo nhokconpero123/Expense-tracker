@@ -1,8 +1,9 @@
 import type Database from 'better-sqlite3';
 import { findCategory } from '../repositories/categories.js';
-import { findTransaction, insertTransaction, monetaryTotals } from '../repositories/transactions.js';
-import type { Transaction } from '../repositories/transactions.js';
+import { findTransaction, insertTransaction, listTransactions, monetaryTotals } from '../repositories/transactions.js';
+import type { Transaction, TransactionPage } from '../repositories/transactions.js';
 import type { TransactionRequest } from '../validation/transactions.js';
+import type { TransactionQuery } from '../validation/queries.js';
 
 export class TransactionCategoryError extends Error {
   constructor() { super('Category does not exist or does not match transaction type'); }
@@ -27,4 +28,15 @@ export function createTransaction(db: Database.Database, input: TransactionReque
     if (!result) throw new Error('Created transaction could not be read');
     return result;
   }).immediate();
+}
+
+/** Deferred transaction: category validation, COUNT and page share one read snapshot. */
+export function searchTransactions(db: Database.Database, query: TransactionQuery): TransactionPage {
+  return db.transaction(() => {
+    if (query.categoryId !== undefined && !findCategory(db, query.categoryId)) {
+      throw new TransactionCategoryError();
+    }
+    // Existing but type-incompatible categories naturally produce no AND matches.
+    return listTransactions(db, query);
+  }).deferred();
 }

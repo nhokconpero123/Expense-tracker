@@ -51,7 +51,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus exact status/envelope checks. T02 is complete only after T02a–T02d; all existing safety requirements remain mandatory.
 
 ## T03 — Create durable schema and category catalog
-- Implementation status: implemented and verified; awaiting review. Schema, atomic migrations/catalog seed, guarded test paths, persistent initialization command, and database readiness are covered by 75 new tests. See README.md and docs/VERIFICATION.md. T04 has not started.
+- Implementation status: implemented and verified. Schema, atomic migrations/catalog seed, guarded test paths, persistent initialization command, and database readiness are covered by 75 tests. See README.md and docs/VERIFICATION.md. T04 reuses the guarded connections and unchanged schema.
 - Depends on: T02a–T02d.
 - Objective: establish constrained SQLite storage and safe initialization.
 - Expected files: `backend/src/db/connection.ts`, `backend/src/db/migrate.ts`, `backend/src/db/seed.ts`, `backend/src/db/migrations/*`, DB tests, `.env.example`, `README.md`.
@@ -60,6 +60,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus documented database location and initialization command.
 
 ## T04 — Expose categories and transaction creation/detail
+- Implementation status: implemented and verified. NUL precheck passed before coding. Category listing/filtering and transaction create/detail have 77 isolated integration cases; T04 suite had 774 passed. See docs/API.md and docs/VERIFICATION.md. T05 preserves create/detail behavior; T06 has not started.
 - Depends on: T03.
 - Objective: deliver the first end-to-end ledger write/read API.
 - Expected files: `backend/src/repositories/{categories,transactions}.ts`, `backend/src/services/transactions.ts`, `backend/src/routes/{categories,transactions}.ts`, `backend/src/app.ts`, API tests.
@@ -68,11 +69,12 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus US-02 and relevant US-10 API criteria verified.
 
 ## T05 — Add ledger search and pagination
+- Implementation status: implemented and verified; awaiting review. T04 prerequisite suite passed (774 tests), then approved search scope was documented in all four planning documents before code changes. Adds 50 list/search integration cases; final suite 824 passed. See docs/API.md and docs/VERIFICATION.md. T06 has not started.
 - Depends on: T04.
 - Objective: retrieve a deterministic, filterable transaction list.
 - Expected files: transaction repository/routes, list validators, integration tests.
-- Acceptance: AND filters, literal note search, inclusive dates, stable sort, metadata and pagination match contract; invalid filters fail consistently; incompatible existing categories produce empty results. Resolve the ASCII-versus-Unicode case-folding decision in ARCHITECTURE.md section 8 before declaring FR-04/US-06 fully accepted.
-- Tests: combined filters, ASCII and non-ASCII case behavior under the approved search decision, `%`/`_` literals, parameterized-query injection input, same-date ordering, date boundaries, empty/out-of-range pages, page limits, invalid category/date range. Until a narrower scope is approved, acceptance must satisfy the existing general case-insensitive requirement.
+- Acceptance: AND filters, literal note search, inclusive dates, stable sort, metadata and pagination match contract; invalid filters fail consistently; incompatible existing categories produce empty results. Explicitly approved MVP scope: ASCII case-insensitive search with literal Unicode characters and no Unicode case folding/normalization, consistent with FR-04/US-06.
+- Tests: combined filters, ASCII case-insensitivity and literal non-ASCII behavior, `%`/`_`/backslash literals, parameterized-query injection input, same-date ordering, date boundaries, empty/out-of-range pages, page limits, invalid category/date range. Do not claim full Unicode case-insensitive support.
 - DoD: common DoD plus US-03/US-06 backend criteria verified.
 
 ## T06 — Add transaction replacement and deletion

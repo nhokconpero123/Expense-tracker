@@ -41,7 +41,7 @@ As a user, I want to delete an incorrect entry deliberately.
 
 ## US-06 — Find transactions (FR-04)
 As a user, I want combined search and filters so I can locate records.
-- A note search is case-insensitive and literal: `%` and `_` are ordinary characters, not wildcards.
+- A note search is ASCII case-insensitive and literal: `%`, `_`, and backslash are ordinary characters. Unicode characters match literally; full Unicode case-insensitivity and normalization are outside MVP. For example, `LUNCH` matches `lunch`, while `CAFÉ` does not match `Café` because É and é differ.
 - Type, category, start date, end date, and search combine using AND; date endpoints are inclusive. The list is all-time until date filters are supplied.
 - An expense type with an income category returns no matches; an invalid category ID or start date after end date returns validation errors.
 - Applying/changing filters resets the page to 1. Clear resets filters, search, and pagination.

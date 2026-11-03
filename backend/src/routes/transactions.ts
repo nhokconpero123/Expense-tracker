@@ -2,13 +2,23 @@ import type Database from 'better-sqlite3';
 import { Router } from 'express';
 import { NotFoundError, RequestValidationError, validateInput } from '../middleware/errors.js';
 import { findTransaction } from '../repositories/transactions.js';
-import { AggregateOverflowError, createTransaction, TransactionCategoryError } from '../services/transactions.js';
+import { AggregateOverflowError, createTransaction, searchTransactions, TransactionCategoryError } from '../services/transactions.js';
 import { parsePositiveId } from '../validation/ids.js';
 import { validateRequestObject } from '../validation/request.js';
 import { validateTransactionRequest } from '../validation/transactions.js';
+import { validateTransactionQuery } from '../validation/queries.js';
 
 export function createTransactionRouter(db: Database.Database): Router {
   const router = Router();
+  router.get('/', (request, response) => {
+    const query = validateInput(() => validateTransactionQuery(request.query));
+    try {
+      response.json(searchTransactions(db, query));
+    } catch (error) {
+      if (error instanceof TransactionCategoryError) throw new RequestValidationError('categoryId');
+      throw error;
+    }
+  });
   router.post('/', (request, response) => {
     validateInput(() => validateRequestObject(request.query, []));
     const input = validateInput(() => validateTransactionRequest(request.body));

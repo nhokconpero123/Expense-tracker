@@ -35,7 +35,7 @@ People who track spending manually lack a reliable, quick view of where money go
 | FR-01 | Display monthly total income, expenses, and balance; changing month refreshes all monthly views. |
 | FR-02 | Create, view, edit, and delete transactions, with visible validation and mutation feedback. |
 | FR-03 | Offer seeded income/expense categories and restrict choices to the selected type. |
-| FR-04 | Search notes by case-insensitive literal substring; combine type, category, and inclusive date filters using AND. Provide clear/reset controls and paginated results. |
+| FR-04 | Search notes by literal substring with ASCII-only case-insensitive matching; Unicode characters match literally with no Unicode case folding or normalization. Treat `%`, `_`, and backslash literally. Combine type, category, and inclusive date filters using AND. Provide clear/reset controls and paginated results. |
 | FR-05 | Create, update, view, and delete category budgets for a month, showing spent, remaining, progress, and status. Over-budget entries remain allowed. |
 | FR-06 | Show expense distribution by category and daily expense totals for the selected month using Recharts; provide equivalent readable values. |
 | FR-07 | Support desktop and mobile layouts, keyboard use, and loading, empty, success, and recoverable error states. |

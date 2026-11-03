@@ -1,6 +1,6 @@
 # Verification Record
 
-Entries are historical records of each task's verification. The final T03 entry records the current SQLite storage/readiness work and test counts.
+Entries are historical records of each task's verification. The final T05 entry records the current transaction search/pagination work and test counts.
 
 ## T01
 
@@ -304,3 +304,71 @@ Both compiled initializer calls exited 0. The compiled server used a newly alloc
 Final frontend build: 29 modules, 753 ms; output sizes remained HTML/CSS/JS 0.45/6.51/223.29 kB. No warnings were emitted by final typecheck/build/test. Commands used approved execution outside the sandbox for esbuild/native SQLite compatibility. `git check-ignore -v` confirmed default database/journal and representative SQLite WAL/SHM filenames are ignored; no .gitignore change was necessary.
 
 Limitations: basic SQL date CHECKs intentionally do not replace full calendar validation; SQLite affinity can coerce numeric text and SQL length counts Unicode code points, while API validators remain stricter. Storage rejects NUL-containing text to avoid SQLite length truncation. Applied migration files must remain immutable; there are no checksums, reset commands, schema-drift repair, or automated backups. Actual production crash recovery, disk-full/corrupt-file scenarios, Vite proxy/browser review, and Windows graceful signal delivery were not retested. No known blocking T03 defects. Stop for review before T04; no commit or push performed.
+
+## T04 — Categories and transaction creation/detail
+
+Date: 2026-11-03 (America/Chicago). Before coding, executed `npm.cmd test --workspace backend -- src/validation/transactions.test.ts`: exit 0, 78 passed, 0 failed/skipped. Source inspection confirmed NUL rejection, including beginning/middle/end tests for shared create/full-PUT validation. This prerequisite passed before T04 edits.
+
+Created repositories/categories.ts, repositories/transactions.ts, services/transactions.ts, routes/categories.ts, routes/transactions.ts, routes/transactions.test.ts, and validation/categories.ts. Mounted routers in app.ts; updated error middleware to safely classify Express's status-400 URIError when a malformed percent-encoded transaction ID cannot be decoded. No existing validators, database schema/connections, dependency versions, or frontend source changed. Documentation updated: README, architecture, plan, API examples, and this record.
+
+Implemented GET /api/categories (optional validated type filter, type/name ordering), POST /api/transactions (complete validation, category compatibility, atomic insert/aggregate/readback, 201 and Location), and GET /api/transactions/:id (strict ID, exact response shape, missing 404). Docs/API.md contains illustrative request/responses. All SQL is static/parameterized. The service independently bounds all-time income and expense totals as BigInts; both positive totals <= Number.MAX_SAFE_INTEGER bound all date/category subsets and balances. Failures roll back before responding. Expected category/aggregate errors map to existing safe 400 envelopes; unexpected SQL/readback errors remain 500. No list/update/delete/budget/summary endpoints were added.
+
+Exact root commands executed:
+
+```powershell
+npm.cmd run typecheck
+Write-Output "TYPECHECK_EXIT=$LASTEXITCODE"
+npm.cmd run build
+Write-Output "BUILD_EXIT=$LASTEXITCODE"
+npm.cmd test
+Write-Output "TEST_EXIT=$LASTEXITCODE"
+```
+
+Initial run passed all three, with 771 tests (74 new integration cases). Final review added three malformed percent-encoding cases and safe URIError normalization; all root checks were rerun:
+
+| Final check | Actual result |
+| --- | --- |
+| Typecheck | Exit 0; frontend/backend strict checks passed |
+| Build | Exit 0; frontend production build and backend compilation passed |
+| Frontend tests | 1 file, 71 passed, 0 failed, 0 skipped |
+| Backend tests | 11 files, 703 passed, 0 failed, 0 skipped |
+| Combined tests | Exit 0; 12 files, 774 passed, 0 failed, 0 skipped |
+
+The final 77 integration cases cover full catalog ordering/filtering, malformed/duplicate/unknown queries, income/expense writes, exact cents and boundaries, response shape/timestamps/Location, optional/max-length notes, NUL rejection, invalid/missing inputs, missing/incompatible categories, strict/malformed IDs, detail 404, SQL-looking note data, unimplemented endpoint 404s, BigInt aggregate boundary/rollback for both types across dates, SQL trigger/readback failure rollback, unavailable connections, safe logging, and HTTP persistence after close/reopen.
+
+Aggregate tests temporarily disable CHECK constraints only to construct a huge synthetic stored amount in a private in-memory fixture; they re-enable CHECKs before HTTP calls. This avoids generating roughly 90 million rows just to hit Number.MAX_SAFE_INTEGER. Production has no such bypass. Test data never opens the development database. Persistence uses only the registered temporary-file allocator and disposes its own artifacts after closing connections.
+
+Final frontend build: 29 modules, 776 ms, unchanged output sizes. No typecheck/build/test warnings or failures occurred. Commands used approved external execution for esbuild/native SQLite compatibility. No live server/Vite proxy/browser review was performed; HTTP integration uses actual loopback Supertest listeners. Aggregate checks scan stored totals on each creation; performance tuning remains future work. Error messages for category/aggregate rejection use the existing fixed field-message envelope, without detailed subreason codes. No known blocking T04 defects. Stop for review before T05/T06; no commit/push performed.
+
+## T05 — Transaction search and pagination
+
+Date: 2026-11-03 (America/Chicago). Prerequisite: executed `npm.cmd test` before changes, exit 0; 774 passed (71 frontend, 703 backend), 0 failed/skipped. Reviewed T04 source/contracts. Before implementation, explicitly recorded the user-approved ASCII-only case-insensitive/literal-Unicode note search scope in PRD FR-04, US-06, architecture, and T05 plan; no full Unicode folding/normalization is claimed.
+
+Created routes/transaction-list.test.ts. Modified transaction repository/service/router to add only GET /api/transactions. Reused validateTransactionQuery unchanged. Updated the T04 unimplemented-endpoint assertion and the old unknown-route middleware case now that the list endpoint exists; create/detail tests are otherwise unchanged. Documentation updated: four planning documents, README, API examples, and this record. No dependencies, schema, UI, PUT/DELETE, budget, or analytics features added. Existing uncommitted changes were preserved.
+
+The list service uses a deferred transaction spanning category existence lookup, COUNT, and paginated data. Both SQL queries share the same parameterized AND filters and join. Date comparisons are inclusive. Ordering is date DESC/id DESC, SQL LIMIT/OFFSET is used, and BigInt metadata/offset arithmetic avoids rounding huge valid page numbers. Missing categories return safe 400; incompatible existing categories yield empty results. A query beyond the last page keeps accurate metadata and skips data selection. No matches produce totalPages=0. Search escapes LIKE percent/underscore/backslash and uses built-in ASCII lower on both sides; Unicode stays literal. NUL-containing searches yield no matches, avoiding LIKE truncation against NUL-free stored notes.
+
+Exact root verification commands:
+
+```powershell
+npm.cmd run typecheck
+Write-Output "TYPECHECK_EXIT=$LASTEXITCODE"
+npm.cmd run build
+Write-Output "BUILD_EXIT=$LASTEXITCODE"
+npm.cmd test
+Write-Output "TEST_EXIT=$LASTEXITCODE"
+```
+
+| Check | Actual result |
+| --- | --- |
+| Typecheck | Exit 0; frontend/backend passed |
+| Build | Exit 0; frontend production assets and backend compilation passed |
+| Frontend tests | 1 file, 71 passed, 0 failed, 0 skipped |
+| Backend tests | 12 files, 753 passed, 0 failed, 0 skipped |
+| Combined tests | Exit 0; 13 files, 824 passed, 0 failed, 0 skipped |
+
+50 new list integration cases cover defaults, complete/partial/beyond-last pages, empty metadata, maximum safe page, 10,000 rows, accurate filtered counts, same-date tie ordering, combined AND filters, inclusive/open/final-year dates, category compatibility/existence, literal wildcard/backslash/injection searches, ASCII/non-ASCII case behavior, Unicode normalization differences, NUL search, whitespace/length limits, malformed and duplicate/array query values, unavailable connections, and nonmutation.
+
+Read-only verification compares all application tables plus total_changes while query_only is enabled. A separate private-file WAL test installs a test-only SQL lower callback to commit a second connection's row during COUNT evaluation: first response keeps the old count/data snapshot, next response sees the new row. This hook is not in production code. All test databases are memory or registered fresh temporary files; connections close before fixture disposal. No development database was opened.
+
+Frontend build transformed 29 modules in 750 ms; artifact sizes unchanged. No warnings/failures were emitted by verification commands. Approved execution outside the sandbox was used for esbuild/native SQLite compatibility. No browser or live Vite proxy checks were performed. The 10,000-row correctness test is not a 300 ms performance benchmark: leading-wildcard searches, counts, and deep offsets can scan rows. Full Unicode case folding/normalization remain explicitly out of scope. No known blocking T05 issues. Stop for review before T06; no commit/push performed.

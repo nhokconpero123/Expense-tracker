@@ -66,7 +66,7 @@ describe('HTTP error boundary', () => {
       expect(response.body.error.fields).toBeUndefined();
     },
   );
-  it.each(['/unknown', '/api/transactions', '/PRIVATE_NOTE?note=PRIVATE_NOTE'])(
+  it.each(['/unknown', '/api/unimplemented', '/PRIVATE_NOTE?note=PRIVATE_NOTE'])(
     'returns safe JSON 404 for unknown route %s', async (path) => {
       const response = await request(productionServer).get(path);
       expectSafe(response, 404, 'NOT_FOUND', 'Resource not found.');

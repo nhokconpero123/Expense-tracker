@@ -1,7 +1,7 @@
 # Architecture
 
 ## 1. Status and components
-T01–T03 implement local foundations, validation/error handling, and SQLite schema/catalog initialization. Business APIs remain planned. The standalone server opens and initializes storage before listening and closes it on shutdown. App construction only accepts an injected database and never opens a file itself.
+T01–T05 implement local foundations, validation/error handling, SQLite schema/catalog initialization, category listing, and transaction creation/detail/search/pagination. Other business APIs remain planned. The standalone server opens and initializes storage before listening and closes it on shutdown. App construction only accepts an injected database and never opens a file itself.
 
 ```text
 Browser: React + TypeScript + Tailwind + Recharts
@@ -36,6 +36,8 @@ Transaction notes reject NUL (U+0000) in the shared POST/full-PUT request valida
 ## 3. REST API contract
 Base path `/api`; JSON request/response bodies, except successful DELETE responses. This table is the planned contract.
 
+Implemented through T05: GET /health, GET /categories, POST /transactions, GET /transactions/:id, GET /transactions. Remaining table entries are future contracts. See docs/API.md for current examples and errors.
+
 | Method and path | Input | Success |
 | --- | --- | --- |
 | GET /health | None | 200 `{data:{status:"ok"}}` when database-ready; 503 `{error:{code:"DATABASE_UNAVAILABLE",message:"Database is unavailable."}}` otherwise |
@@ -59,7 +61,7 @@ Response shapes:
 Validation and query rules:
 - Reject unknown body/query fields, invalid enum values, arrays where scalars are expected, invalid IDs, invalid dates/months, unsafe numeric values, and wrong JSON types. Body money/IDs must be JSON numbers, not numeric strings. Parse numeric query/path strings strictly.
 - Dates and months use years 1900–9999, including the final supported December; avoid relying on a year-10000 next-month boundary.
-- List defaults: page=1, pageSize=20; pageSize range 1..100, positive safe-integer page. `q` is trimmed, maximum 100 characters, blank means no search. Date range is inclusive; startDate must not exceed endDate. All list filters combine with AND. Escape SQL LIKE metacharacters for literal substring search. The PRD/US-06 case-insensitive requirement remains authoritative; SQLite's default ASCII-only case folding is insufficient evidence for general Unicode support. Resolve the implementation/scope decision in section 8 before completing T05; no ASCII-only scope reduction is approved here.
+- List defaults: page=1, pageSize=20; pageSize range 1..100, positive safe-integer page. `q` is trimmed, maximum 100 characters, blank means no search. Date range is inclusive; startDate must not exceed endDate. All list filters combine with AND. Approved MVP search scope: ASCII-only case-insensitive note matching; Unicode characters match literally, without Unicode case folding or normalization. Escape SQL LIKE `%`, `_`, and the escape character itself for literal substring search. Full Unicode case-insensitive support is out of scope.
 - Return empty data for a valid page beyond the last page. `totalPages=0` when no rows match. UI adjusts out-of-range pages after deletions.
 - Existing but type-incompatible list category filters produce no matches. Nonexistent category filters produce 400. Missing resources addressed directly return 404.
 - Error envelope: `{error:{code,message,fields?}}`; fields map input names to messages. Use 400 for validation/malformed JSON, 404 for missing resources, 413 for body above 16 KiB, and 500 for unexpected failures. Log diagnostic details server-side without transaction notes; never expose stack traces or SQL.
@@ -68,7 +70,9 @@ Validation and query rules:
 - Frontend parses decimal input as strings into cents without floating-point multiplication. Backend accepts cents only. Format USD with Intl.NumberFormat for display; do not reuse formatted strings for calculations.
 - Use lexicographic canonical date ranges from first through last calendar day for month aggregation, including December and leap-year boundaries. Transaction dates have no timezone. Metadata timestamps use UTC and do not determine reporting month.
 - Compute aggregates from persisted rows using integer SQL SUM and safe-integer checks. Within the write transaction, verify supported totals remain within JavaScript's safe integer range; rollback otherwise. Test this guard with controlled fixtures. Percentage is derived display data, rounded to one decimal; monetary data remains integer.
+- T04 creates transactions through routes -> existing validation -> transaction service -> parameterized repositories. Category lookup, insert, aggregate guard and response readback share an immediate write transaction. Per-type all-time SUM values use better-sqlite3 BigInt mode before comparison with Number.MAX_SAFE_INTEGER; bounding both nonnegative totals also bounds category/date subsets and balances. Unsafe totals reject with 400 and rollback; SQL/readback failures reject with generic 500 and rollback. This scan-based guard favors correctness before future performance tuning. No production CHECK bypass or aggregate cache is added.
 - Read summary aggregates in one consistent read transaction. Budget list and spent calculations also use a consistent snapshot. Sequential API reads across different endpoints need not share a snapshot; after a mutation the UI refreshes all relevant views.
+- T05 list service opens a deferred read transaction before category validation and uses one filter definition for COUNT and SQL-paginated SELECT, keeping count/data consistent. Valid out-of-range offsets skip SELECT; offset and total-page arithmetic use BigInt to avoid precision loss for safe but very large page values. SQL sorting is transaction_date DESC, id DESC. Search uses built-in SQLite lower on both operands and escaped LIKE for ASCII folding plus literal Unicode; no schema/index changes or writes are performed. Queries containing NUL return no matches because notes cannot store it.
 - Use transactions for migrations, seed updates, budget upserts, and writes with aggregate guards. Seed by stable category keys without overwriting user data. Keep test database paths independent and explicitly guarded.
 - Implemented in T03: initialize migrations and seeding atomically; migration 001 creates the schema/indexes without resetting tables. Migration versions are immutable and contiguous; incompatible history is rejected. Default storage is backend/data/expense-tracker.sqlite for source and compiled startup. DATABASE_PATH relative values resolve from backend/. See README.md for initialization commands, constraints, limitations, and backup guidance.
 - Test connections default to memory, ignore DATABASE_PATH, and only open persistent files allocated by the registered temporary-file factory. Development connections are refused under Vitest/NODE_ENV=test. Realpath and file-link checks guard allocated paths; unrelated filenames are refused before opening. The server injects the initialized connection into createApp; health performs read-only schema/version/catalog checks and never exposes SQLite errors. Readiness is not an exhaustive integrity/schema-drift audit.
@@ -108,4 +112,4 @@ Common operational requirements:
 ## 8. Remaining review decisions
 - Choose deployment option A or B after the MVP; recommendation for a junior portfolio is A with public HTTP mutations disabled. Hosting provider, storage/cost, backup retention, and (for B) authentication/session approach require separate approval.
 - Resolved in T01/T03: Node 24 LTS, better-sqlite3 12, strict backend TypeScript, and initial schema/connection lifecycle. Future business APIs remain separate tasks.
-- Search semantics review: the earlier architecture limited case folding to ASCII, conflicting with the broader PRD FR-04/US-06 wording. The API contract now defers to the unchanged product requirement. Recommendation requiring approval: explicitly limit v1 case-insensitivity to ASCII, preserve literal Unicode substring matching, and defer full Unicode case folding. Alternatively, retain broader case-insensitivity and select/test a Unicode-aware implementation. Pending approval, do not weaken the PRD/story requirement or mark search fully accepted on ASCII-only evidence.
+- Search scope resolved for T05 by explicit user approval: ASCII case-insensitive matching and literal Unicode characters, with no full Unicode case folding or normalization. PRD FR-04 and US-06 use this same MVP scope.
