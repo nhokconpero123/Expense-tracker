@@ -74,7 +74,7 @@ export function DeleteTransactionDialog({
       <div className="relative w-full max-w-md rounded-2xl border border-rose-500/30 bg-slate-900 p-6 shadow-2xl shadow-rose-950/20">
         <div className="flex items-start gap-4">
           <div
-            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20"
             aria-hidden="true"
           >
             <svg
@@ -138,7 +138,7 @@ export function DeleteTransactionDialog({
           {transaction.note && (
             <div className="pt-2 border-t border-slate-800/80 flex flex-col gap-1">
               <span className="text-xs text-slate-400">Note</span>
-              <span className="text-xs text-slate-300 italic break-words">{transaction.note}</span>
+              <span className="text-xs text-slate-300 italic wrap-break-word">{transaction.note}</span>
             </div>
           )}
         </div>
