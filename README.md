@@ -1,6 +1,6 @@
 # Expense Tracker
 
-A single-user, localhost-only personal finance application. T01–T06 provide the React landing screen, input validation, safe HTTP errors, durable SQLite storage, categories, and transaction create/detail/search/pagination/replacement/deletion APIs. Budgets, dashboard features, and authentication remain unimplemented. See [docs/API.md](docs/API.md) for the implemented contracts and examples.
+A single-user, localhost-only personal finance application. T01–T07 provide the React landing screen, input validation, safe HTTP errors, durable SQLite storage, categories, transaction APIs, and monthly summary/analytics data. Budgets, frontend dashboard/charts, and authentication remain unimplemented. See [docs/API.md](docs/API.md) for the implemented contracts and examples.
 
 ## Prerequisites and choices
 
@@ -136,5 +136,11 @@ Approved MVP search is ASCII case-insensitive only. SQLite's built-in lower is a
 PUT /api/transactions/:id reuses the complete create validator: type, amountCents, categoryId, and date are required; omitted note becomes empty. The service checks existence/category compatibility, performs a parameterized UPDATE, checks old/new monthly totals and the existing all-time guard as BigInts, and reads the result within one immediate transaction. It preserves ID/createdAt and returns 200 `{data: Transaction}`. updatedAt uses current UTC time when later than the previous value; otherwise it advances the previous timestamp by one millisecond. This avoids equality/regression on rapid edits or a backward clock. Failed edits roll back fields, timestamps, and database side effects.
 
 DELETE /api/transactions/:id validates the ID and atomically checks/removes the record. It verifies that one row was deleted and the record is gone before returning 204 without a body. Repeated/missing deletion returns 404. Failed or ignored deletions roll back; other transactions and budget records are preserved. Both endpoints reject unknown query fields. Malformed input/category/aggregate failures return safe 400 responses; missing records return 404 and unexpected database failures return generic 500. UI confirmation belongs to a later frontend task and is not an extra API parameter.
+
+## T07 monthly summary
+
+GET /api/summary?month=YYYY-MM requires an explicit calendar month; missing/invalid/repeated/unknown query fields return safe 400 validation errors. It returns `{data:{month,incomeCents,expenseCents,balanceCents,expensesByCategory,dailyExpenses}}`. Only persisted transaction dates determine reporting membership; timestamps, current timezone, transaction list filters, and pagination do not affect it.
+
+The service opens one deferred read transaction for income/expense totals, category spending, and daily spending. The repository reuses existing monetary SUM logic and adds parameterized expense GROUP BY queries. Category totals exclude income and zero-spending categories and sort by amount descending, category ID ascending. Daily entries cover every date in ascending order, zero-filled using existing month boundaries, including leap years and December 9999. SQL reads use BigInt mode; the pure service checks safe integer bounds before converting money/IDs for JSON, computes balance using BigInt, and verifies both expense breakdown sums agree. Unsafe/corrupt aggregates or database failures return generic 500 rather than rounded/mismatched values. Empty months return zero totals, no categories, and complete daily zeros. No derived totals, cache, schema changes, frontend calculations, or chart components are added.
 
 Current verification results and exact commands are recorded in [docs/VERIFICATION.md](docs/VERIFICATION.md). Planning documents live in `docs/`; follow [AGENTS.md](AGENTS.md). Deployment remains a separate, approval-gated post-MVP phase.

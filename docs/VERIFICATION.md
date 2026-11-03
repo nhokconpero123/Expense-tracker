@@ -1,6 +1,6 @@
 # Verification Record
 
-Entries are historical records of each task's verification. The final T06 entry records the current transaction replacement/deletion work and test counts.
+Entries are historical records of each task's verification. The final T07 entry records the current monthly summary/analytics API work and test counts.
 
 ## T01
 
@@ -403,3 +403,36 @@ Write-Output "TEST_EXIT=$LASTEXITCODE"
 All mutation tests use memory or registered private temporary files. Oversized aggregate rows and failure triggers are test-only fixtures; CHECK constraints are restored before HTTP operations. Private files are disposed after closing connections. No development database was opened or modified. Existing T04 creation/detail and T05 list/search suites passed unchanged except for removing obsolete assertions that PUT/DELETE were unimplemented.
 
 Frontend build: 29 modules, 799 ms; artifact sizes unchanged. No warnings/failures occurred in verification commands. Approved execution outside the sandbox was used for esbuild/native SQLite compatibility. No browser/live proxy/performance benchmark was performed. Aggregate guards still scan totals; updatedAt is server-managed monotonic edit metadata and can be 1 ms ahead of wall time for rapid edits. No optimistic concurrency control is implemented (single-user last successful write wins). No known blocking T06 issues. Stop for review before T07; no commit/push performed.
+
+## T07 — Monthly summary and analytics API
+
+Date: 2026-11-03 (America/Chicago). Prerequisite: ran `npm.cmd test` before editing, exit 0; 897 passed (71 frontend/826 backend), no failures/skips. This confirms the T06 final verification baseline. Vitest emitted an optional worker-reuse performance hint on that precheck; isolation settings were not changed.
+
+Created validation/summary.ts, repositories/summary.ts, services/summary.ts, routes/summary.ts, services/summary.test.ts, and routes/summary.test.ts. Mounted the summary router in app.ts. Updated README, API examples, architecture, plan, and this record. No existing money/date/query rules, transaction APIs, dependencies, schemas, derived storage, budgets, or frontend logic changed.
+
+GET /api/summary requires one validated month and rejects unknown/list query parameters. The repository reuses the existing per-type monetary SUM query and adds parameterized category/date expense aggregates. One deferred service transaction spans all reads. BigInt values are checked before conversion to safe JSON numbers; balance uses BigInt subtraction. Categories exclude income/zero totals and sort amount DESC/ID ASC. Pure service assembly zero-fills every day using existing inclusive calendar boundaries and checks category/day sums equal monthly expenseCents. Empty months return zero totals/full daily data. No timestamp/current-clock month inference is used. Unsafe/inconsistent stored values, SQLite overflow, and unexpected database errors fail with generic 500; malformed month queries return safe 400.
+
+Exact root verification commands:
+
+```powershell
+npm.cmd run typecheck
+Write-Output "TYPECHECK_EXIT=$LASTEXITCODE"
+npm.cmd run build
+Write-Output "BUILD_EXIT=$LASTEXITCODE"
+npm.cmd test
+Write-Output "TEST_EXIT=$LASTEXITCODE"
+```
+
+| Check | Actual result |
+| --- | --- |
+| Typecheck | Exit 0; frontend/backend passed |
+| Build | Exit 0; frontend production assets and backend compilation passed |
+| Frontend tests | 1 file, 71 passed, 0 failed, 0 skipped |
+| Backend tests | 15 files, 878 passed, 0 failed, 0 skipped |
+| Combined tests | Exit 0; 16 files, 949 passed, 0 failed, 0 skipped |
+
+52 new cases comprise 14 pure unit tests and 38 HTTP integration tests. Coverage includes 1900/2000/2100/2400 February rules, 30/31-day months, empty months, negative/exact-cent balances, safe integer extrema, zero filling, category order/ties, income/unspent-category exclusion, inclusive boundaries independent of metadata, December/year transitions, December 9999, list-filter independence, mutation-driven changes across categories/types/months, malformed/duplicate/unknown month queries, SQLite SUM overflow, unsafe aggregate rejection without data changes, unavailable connections, and no derived data/schema mutation under query_only.
+
+The concurrent snapshot test uses a registered private temporary WAL database with two connections. A test-only statement spy commits a writer after the first totals read. The first HTTP response retains the old consistent totals/category/day snapshot; the next response sees the new row consistently. The spy is test-only; no production instrumentation or journal-policy change was added. Aggregate overflow fixtures temporarily bypass CHECKs only in isolated test setup, then restore enforcement before requests. All other tests use memory; connections close before private-file disposal. No development database was opened or modified.
+
+Frontend build: 29 modules, 791 ms; artifact sizes unchanged. No verification failures or warnings were emitted in the final commands. Approved execution outside the sandbox was used for esbuild/native SQLite compatibility. No browser/Vite proxy review or performance benchmark was performed; the aspirational 10,000-row p95 target remains a later measurement. Reporting assumes writes go through validated APIs; SQL date CHECKs alone do not repair manually corrupted data. No known blocking T07 issues. Stop for review before T08; no commit/push performed.

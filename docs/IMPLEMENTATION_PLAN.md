@@ -78,7 +78,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus US-03/US-06 backend criteria verified.
 
 ## T06 — Add transaction replacement and deletion
-- Implementation status: implemented and verified; awaiting review. T05 prerequisite suite passed (824 tests). Atomic replacement/deletion and regression coverage add 73 mutation integration cases; final suite 897 passed. See docs/API.md and docs/VERIFICATION.md. T07 has not started.
+- Implementation status: implemented and verified. T05 prerequisite suite passed (824 tests). Atomic replacement/deletion and regression coverage add 73 mutation integration cases; T06 suite had 897 passed. See docs/API.md and docs/VERIFICATION.md. T07 preserves mutation behavior.
 - Depends on: T04.
 - Objective: complete mutable ledger APIs.
 - Expected files: transaction repository/service/routes and integration tests.
@@ -87,6 +87,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus US-04/US-05 API criteria verified.
 
 ## T07 — Add monthly summary and analytics API
+- Implementation status: implemented and verified; awaiting review. T06 prerequisite suite passed (897 tests). Added 14 pure unit and 38 HTTP integration tests; final suite 949 passed. See docs/API.md and docs/VERIFICATION.md. T08 has not started.
 - Depends on: T05, T06.
 - Objective: provide authoritative monthly totals and chart data.
 - Expected files: `backend/src/repositories/summary.ts`, `backend/src/services/summary.ts`, `backend/src/routes/summary.ts`, unit/integration tests.

@@ -1,4 +1,4 @@
-# Implemented API through T06
+# Implemented API through T07
 
 Local base URL: `http://127.0.0.1:3001/api`; Vite proxies `/api` from port 5173. These unauthenticated APIs are localhost-only. JSON objects use camelCase, monetary values use integer USD cents, and timestamps are UTC. Examples below assume a freshly seeded database; IDs/timestamps are illustrative, not fixed contract values. Discover category IDs through GET /categories.
 
@@ -119,6 +119,57 @@ Subsequent GET/DELETE /api/transactions/1 returns:
 {"error":{"code":"NOT_FOUND","message":"Resource not found."}}
 ```
 
+## GET /summary?month=YYYY-MM
+
+Require one explicit month in 1900-01..9999-12 using exact YYYY-MM syntax. Missing/blank/invalid/repeated/array month values and unknown query parameters return safe 400. Transaction-list filters and pagination are not accepted here. Reporting uses transaction dates inclusively from first through last day, independently of metadata timestamps or the server timezone.
+
+Income/expense/balance values are safe integer cents. Expense category totals exclude income and unspent categories and sort amount descending, category ID ascending. Daily expenses include every calendar date, zero-filled and ascending. Both breakdown sums equal expenseCents. An empty month has zero totals, empty category data, and all daily zeros. All aggregates use one read snapshot; nothing derived is stored. Corrupt/unsafe totals, SQLite SUM overflow, or unavailable storage produce a generic safe 500 rather than imprecise JSON numbers.
+
+Illustrative example: one 100-cent income and one 29-cent Food expense on February 1:
+
+```http
+GET /api/summary?month=2026-02
+```
+
+```json
+{
+  "data": {
+    "month": "2026-02", "incomeCents": 100, "expenseCents": 29, "balanceCents": 71,
+    "expensesByCategory": [{"categoryId": 4, "categoryName": "Food", "amountCents": 29}],
+    "dailyExpenses": [
+      {"date":"2026-02-01","amountCents":29},
+      {"date":"2026-02-02","amountCents":0},
+      {"date":"2026-02-03","amountCents":0},
+      {"date":"2026-02-04","amountCents":0},
+      {"date":"2026-02-05","amountCents":0},
+      {"date":"2026-02-06","amountCents":0},
+      {"date":"2026-02-07","amountCents":0},
+      {"date":"2026-02-08","amountCents":0},
+      {"date":"2026-02-09","amountCents":0},
+      {"date":"2026-02-10","amountCents":0},
+      {"date":"2026-02-11","amountCents":0},
+      {"date":"2026-02-12","amountCents":0},
+      {"date":"2026-02-13","amountCents":0},
+      {"date":"2026-02-14","amountCents":0},
+      {"date":"2026-02-15","amountCents":0},
+      {"date":"2026-02-16","amountCents":0},
+      {"date":"2026-02-17","amountCents":0},
+      {"date":"2026-02-18","amountCents":0},
+      {"date":"2026-02-19","amountCents":0},
+      {"date":"2026-02-20","amountCents":0},
+      {"date":"2026-02-21","amountCents":0},
+      {"date":"2026-02-22","amountCents":0},
+      {"date":"2026-02-23","amountCents":0},
+      {"date":"2026-02-24","amountCents":0},
+      {"date":"2026-02-25","amountCents":0},
+      {"date":"2026-02-26","amountCents":0},
+      {"date":"2026-02-27","amountCents":0},
+      {"date":"2026-02-28","amountCents":0}
+    ]
+  }
+}
+```
+
 ## Errors and readiness
 
 All errors follow `{error:{code,message,fields?}}`. Client errors do not include SQL, filesystem paths, request values, notes, or stacks.
@@ -134,4 +185,4 @@ All errors follow `{error:{code,message,fields?}}`. Client errors do not include
 
 GET /health retains 200 `{data:{status:"ok"}}` for a ready database and generic 503 otherwise. Business routers receive the explicit database injected into createApp; constructing an app without a database opens no file and mounts no business routers. Existing server startup always initializes and injects storage before listening.
 
-Budgets, summary/analytics, and UI integrations are not implemented through T06.
+Budgets and frontend UI/chart integrations are not implemented through T07.
