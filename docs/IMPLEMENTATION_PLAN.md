@@ -6,7 +6,7 @@ This plan describes future work only. Review the four planning documents before 
 Paths below are proposed. Each implementation task requires its acceptance criteria, applicable tests, documentation updates, no known critical defects, and a reviewable diff to meet its definition of done (DoD). Record exact commands/results; never claim unrun tests passed. Install only required dependencies during an authorized implementation task. Never delete existing user data without approval.
 
 ## T01 — Establish local project foundations
-- Implementation status: foundations implemented; see docs/VERIFICATION.md for exact checks and limitations. T02a has not started.
+- Implementation status: foundations implemented; see docs/VERIFICATION.md for exact checks and limitations.
 - Depends on: document review.
 - Objective: create the frontend/backend TypeScript projects and predictable local commands.
 - Expected files: root/package manifests and lockfile, `frontend/package.json`, `frontend/vite.config.ts`, `frontend/tsconfig*`, `frontend/src/main.tsx`, `backend/package.json`, `backend/tsconfig.json`, `backend/src/app.ts`, `backend/src/server.ts`, `.gitignore`, `.env.example`, `README.md`.
@@ -15,6 +15,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus exact setup/test commands and environment requirements documented.
 
 ## T02a — Validate money and identifiers
+- Implementation status: implemented and verified; awaiting review. Pure validators use documented TypeError/RangeError exceptions; see README.md for input policies and docs/VERIFICATION.md for actual results. T02b–T02d have not started.
 - Depends on: T01.
 - Objective: establish exact USD conversion and primitive integer validation without a database.
 - Expected files: `backend/src/validation/money.ts`, `backend/src/validation/ids.ts`, their `.test.ts` files, `frontend/src/lib/money.ts`, related tests.

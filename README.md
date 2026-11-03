@@ -46,7 +46,16 @@ All commands below run at the repository root.
 | `npm.cmd start` | Run compiled backend at loopback (build first) |
 | `npm.cmd run preview --workspace frontend` | Preview frontend build at 127.0.0.1:4173; no API proxy is configured for preview |
 
-Frontend Vitest is configured with a Node environment for future pure logic tests. There are no frontend tests in T01; its command explicitly allows zero tests. DOM/component testing infrastructure will be added only when needed. Backend Supertest checks real HTTP on an ephemeral **loopback-only** listener and closes it afterward; it never opens SQLite. Production backend output excludes test files.
+Frontend Vitest uses a Node environment and now includes T02a pure USD-parser tests. Its command retains the T01 `--passWithNoTests` option, but tests are present and executed. DOM/component testing infrastructure will be added only when needed. Backend unit tests cover money and ID validation; Supertest checks real HTTP on an ephemeral **loopback-only** listener and closes it afterward. None opens SQLite. Production backend output excludes test files.
+
+## T02a validation utilities
+
+- `validateMoneyCents(value: unknown)` accepts primitive numbers that are safe integers from 1 through 100000000 cents. No string coercion is performed.
+- `validatePositiveId(value: unknown)` accepts primitive numbers from 1 through Number.MAX_SAFE_INTEGER. It does not check database existence.
+- `parsePositiveId(value: unknown)` accepts canonical ASCII digit strings starting with 1–9. Leading zeros, whitespace (including trailing newlines), signs, decimal points, exponent/hex notation, and unsafe results are rejected.
+- `parseUsdToCents(input: unknown)` accepts unsigned ASCII whole-dollar strings with optional one/two decimal places. Leading zeros are allowed; whitespace is rejected rather than trimmed. Examples: `12` -> 1200, `12.3` -> 1230, `12.34` -> 1234, `0.01` -> 1, and `1000000.00` -> 100000000. It constructs cent digits as text, bounds their length, then converts the bounded integer to Number; no floating-point multiplication or rounding is used. Symbols, separators, exponents, zero, negatives, excess precision, and over-limit amounts are rejected.
+
+These functions return a validated number or throw a documented `TypeError` for an incorrect primitive type and `RangeError` for invalid format/range. Callers can catch these standard error classes; HTTP error mapping is deferred to T02d. Frontend parsing is separate from formatting and UI, and backend validation remains mandatory when API integration is implemented. Numeric validators operate on decoded numbers: JSON number spellings such as `1e2` are indistinguishable from `100` after decoding; lexical restrictions apply to the string parsers.
 
 ## Manual foundation verification
 
