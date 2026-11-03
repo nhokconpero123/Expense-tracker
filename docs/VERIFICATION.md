@@ -1,6 +1,6 @@
 # Verification Record
 
-Entries are historical records of each task's verification. The final T07 entry records the current monthly summary/analytics API work and test counts.
+Entries are historical records of each task's verification. The final T08 entry records the current monthly budget API work and test counts.
 
 ## T01
 
@@ -436,3 +436,38 @@ Write-Output "TEST_EXIT=$LASTEXITCODE"
 The concurrent snapshot test uses a registered private temporary WAL database with two connections. A test-only statement spy commits a writer after the first totals read. The first HTTP response retains the old consistent totals/category/day snapshot; the next response sees the new row consistently. The spy is test-only; no production instrumentation or journal-policy change was added. Aggregate overflow fixtures temporarily bypass CHECKs only in isolated test setup, then restore enforcement before requests. All other tests use memory; connections close before private-file disposal. No development database was opened or modified.
 
 Frontend build: 29 modules, 791 ms; artifact sizes unchanged. No verification failures or warnings were emitted in the final commands. Approved execution outside the sandbox was used for esbuild/native SQLite compatibility. No browser/Vite proxy review or performance benchmark was performed; the aspirational 10,000-row p95 target remains a later measurement. Reporting assumes writes go through validated APIs; SQL date CHECKs alone do not repair manually corrupted data. No known blocking T07 issues. Stop for review before T08; no commit/push performed.
+
+## T08 — Monthly budget API
+
+Date: 2026-11-03 (America/Chicago). Prerequisite: T07 final read-only review passed all 15 criteria with an executed 949-test suite (0 failures/skips). No blocking discrepancy was found.
+
+Created backend/src/repositories/budgets.ts, services/budgets.ts, routes/budgets.ts, services/budgets.test.ts and routes/budgets.test.ts. Modified app.ts to mount the router. Removed only the obsolete T04 assertion that budget APIs were unimplemented; all remaining earlier tests passed. Updated README.md, API.md, ARCHITECTURE.md, IMPLEMENTATION_PLAN.md and this record. No dependencies, schemas, frontend code, authentication or deployment changes.
+
+GET /api/budgets requires an explicit validated month and returns all eight seeded expense categories with derived spending, ordered by name/ID. Absent amount/remaining/utilization values are null. A joined parameterized statement within a deferred transaction provides consistent limits/spending. PUT uses an immediate transaction for category validation, ON CONFLICT upsert and response readback, returning 200 for insert/replacement. DELETE returns empty 204, or 404 for a missing expense-category limit, without deleting transactions. Nonexistent/income categories and malformed inputs return safe 400. Failed writes/readback, unsafe stored aggregates, and SQLite SUM overflow return generic 500 with transaction rollback.
+
+BigInt is used for monetary safety checks, remaining arithmetic, percentage rounding and status comparisons. Utilization is rounded half-up to one decimal without a 100% cap, then converted to a JSON display number. Extreme percentages may exceed floating-point decimal resolution; exact cents/status remain unaffected. Over-budget spending is permitted by existing transaction APIs. No derived totals are stored.
+
+Exact final root commands:
+
+```powershell
+npm.cmd run typecheck
+Write-Output "TYPECHECK_EXIT=$LASTEXITCODE"
+npm.cmd run build
+Write-Output "BUILD_EXIT=$LASTEXITCODE"
+npm.cmd test
+Write-Output "TEST_EXIT=$LASTEXITCODE"
+```
+
+| Check | Actual result |
+| --- | --- |
+| Typecheck | Exit 0; frontend and backend passed |
+| Build | Exit 0; Vite production build and backend TypeScript compilation passed |
+| Frontend tests | 1 file; 71 passed, 0 failed, 0 skipped |
+| Backend tests | 17 files; 962 passed, 0 failed, 0 skipped |
+| Combined tests | Exit 0; 18 files; 1033 passed, 0 failed, 0 skipped |
+
+85 new budget tests comprise 17 unit tests and 68 integration tests. The total is 949 previous tests minus one obsolete unimplemented-route assertion plus 85 new cases. Earlier iterations also passed typecheck/build and a 1032-test suite before adding the targeted SQLite SUM overflow test. Final frontend build transformed 29 modules in 814 ms; asset sizes are unchanged. Test/build execution used approved execution outside the sandbox for esbuild access. Vitest emitted only an optional worker-reuse performance hint; isolation was preserved.
+
+Coverage includes every expense category, null semantics, all statuses, exact limits and cents, percentage rounding ties, month/category/type isolation, leap and final-year boundaries, repeated upsert uniqueness and preserved identity, successful/repeated deletion, transaction preservation, malformed inputs and parameterized paths, foreign keys, trigger/readback failures with rollback, unsafe spending/SUM overflow, unavailable storage, mutation-driven spending, private-file close/reopen persistence, and read-only GET under query_only. The snapshot test holds a SELECT iterator open while another WAL connection atomically replaces a limit and adds spending: the first response retains the complete old snapshot, and the next response reflects both committed changes.
+
+Tests use memory or newly registered private temporary files only; all connections close before private-file disposal. No development database was opened, deleted, reset or modified. No browser/live proxy review or performance benchmark was performed. No known blocking T08 issues. Stop for review before T09; no commit/push performed.

@@ -87,7 +87,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus US-04/US-05 API criteria verified.
 
 ## T07 — Add monthly summary and analytics API
-- Implementation status: implemented and verified; awaiting review. T06 prerequisite suite passed (897 tests). Added 14 pure unit and 38 HTTP integration tests; final suite 949 passed. See docs/API.md and docs/VERIFICATION.md. T08 has not started.
+- Implementation status: implemented and final review passed (949 tests). T06 prerequisite suite passed (897 tests). Added 14 pure unit and 38 HTTP integration tests. See docs/API.md and docs/VERIFICATION.md. T08 preserves summary behavior.
 - Depends on: T05, T06.
 - Objective: provide authoritative monthly totals and chart data.
 - Expected files: `backend/src/repositories/summary.ts`, `backend/src/services/summary.ts`, `backend/src/routes/summary.ts`, unit/integration tests.
@@ -96,6 +96,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus US-01/US-08 calculation criteria verified.
 
 ## T08 — Add monthly budget API
+- Implementation status: implemented; verification results are recorded in docs/VERIFICATION.md. Added repository/service/router, pure calculation tests and isolated HTTP tests. Awaiting review before T09.
 - Depends on: T07.
 - Objective: manage monthly category limits against actual spending.
 - Expected files: budget repository/service/routes, budget validation, unit/integration tests.

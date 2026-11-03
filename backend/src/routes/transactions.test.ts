@@ -163,9 +163,6 @@ describe('POST /api/transactions and GET /api/transactions/:id', () => {
     expect(response.body.data.note).toBe(note);
     expect(count()).toBe(1);
   });
-  it('keeps budget APIs unimplemented', async () => {
-    expect((await request(server).get('/api/budgets')).status).toBe(404);
-  });
 });
 
 describe('atomic aggregate safety and database failures', () => {

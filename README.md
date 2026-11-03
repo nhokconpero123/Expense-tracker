@@ -1,6 +1,12 @@
 # Expense Tracker
 
-A single-user, localhost-only personal finance application. T01–T07 provide the React landing screen, input validation, safe HTTP errors, durable SQLite storage, categories, transaction APIs, and monthly summary/analytics data. Budgets, frontend dashboard/charts, and authentication remain unimplemented. See [docs/API.md](docs/API.md) for the implemented contracts and examples.
+A single-user, localhost-only personal finance application. T01–T08 provide the React landing screen, input validation, safe HTTP errors, durable SQLite storage, categories, transaction APIs, monthly summary/analytics data, and monthly budget APIs. Frontend dashboard/budget UI/charts and authentication remain unimplemented. See [docs/API.md](docs/API.md) for the implemented contracts and examples.
+
+## T08 monthly budgets
+
+GET `/api/budgets?month=YYYY-MM` returns all expense categories ordered by name, including categories without limits. Missing amount/remaining/utilization values are null; spending is always derived from monthly expense transactions. PUT `/api/budgets/:categoryId/:month` atomically creates/replaces a limit and returns 200. DELETE returns empty 204 or 404 for an absent limit and preserves transactions. Only expense categories are eligible. Reads use a consistent snapshot; writes and response readback share an immediate transaction. No database migration or manual initialization change is needed.
+
+Monetary outputs remain safe integer cents. Utilization is uncapped, rounded half-up to one decimal with BigInt arithmetic before conversion to a JSON display number. Extremely large percentages may exceed floating-point decimal resolution; this does not affect exact cents, remaining values, or status comparisons.
 
 ## Prerequisites and choices
 

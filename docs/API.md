@@ -1,4 +1,4 @@
-# Implemented API through T07
+# Implemented API through T08
 
 Local base URL: `http://127.0.0.1:3001/api`; Vite proxies `/api` from port 5173. These unauthenticated APIs are localhost-only. JSON objects use camelCase, monetary values use integer USD cents, and timestamps are UTC. Examples below assume a freshly seeded database; IDs/timestamps are illustrative, not fixed contract values. Discover category IDs through GET /categories.
 
@@ -178,11 +178,34 @@ All errors follow `{error:{code,message,fields?}}`. Client errors do not include
 | --- | --- | --- |
 | 400 | VALIDATION_ERROR | Invalid schema/query/ID, incompatible category, or unsafe aggregate |
 | 400 | INVALID_JSON | Malformed or non-container JSON |
-| 404 | NOT_FOUND | Unknown route or missing transaction detail |
+| 404 | NOT_FOUND | Unknown route, missing transaction, or absent budget on DELETE |
 | 413 | PAYLOAD_TOO_LARGE | JSON body exceeds 16 KiB |
 | 500 | INTERNAL_ERROR | Unexpected database/internal failure |
 | 503 | DATABASE_UNAVAILABLE | Health readiness only |
 
 GET /health retains 200 `{data:{status:"ok"}}` for a ready database and generic 503 otherwise. Business routers receive the explicit database injected into createApp; constructing an app without a database opens no file and mounts no business routers. Existing server startup always initializes and injects storage before listening.
 
-Budgets and frontend UI/chart integrations are not implemented through T07.
+Frontend dashboard/budget UI/chart integrations are not implemented through T08.
+
+## Monthly budgets
+
+GET `/api/budgets?month=2026-01` requires one canonical month (years 1900–9999). Return 200 `{data:{month,items}}`. Items contain all eight expense categories ordered by name, then ID. List filters/pagination and unknown/duplicate/array query fields are rejected with 400. Spending uses inclusive calendar dates and every expense transaction in that category/month, independently of list filters. Income is excluded.
+
+Each item has exactly `categoryId`, `categoryName`, `month`, `amountCents`, `spentCents`, `remainingCents`, `utilizationPercent`, and `status`. With no limit, amount/remaining/utilization are null, status is `no_budget`, and spending still reflects persisted transactions. With a limit, remaining = amount minus spent; status is `under`, `at_limit`, or `over` according to exact cents. Spending above the limit is allowed. Utilization is uncapped, rounded half-up to one decimal (for example 1/3 = 33.3%, 2/3 = 66.7%, 1/2000 = 0.1%). Large display percentages have JSON floating-point precision limits; monetary values and status comparisons remain exact.
+
+Example GET response excerpt (the full items array contains eight categories):
+
+```json
+{"data":{"month":"2026-01","items":[
+  {"categoryId":4,"categoryName":"Food","month":"2026-01","amountCents":10000,"spentCents":12500,"remainingCents":-2500,"utilizationPercent":125,"status":"over"},
+  {"categoryId":5,"categoryName":"Housing","month":"2026-01","amountCents":null,"spentCents":0,"remainingCents":null,"utilizationPercent":null,"status":"no_budget"}
+]}}
+```
+
+PUT `/api/budgets/4/2026-01` with JSON `{"amountCents":10000}` creates or replaces the limit. Both paths return **200**, with no Location requirement:
+
+```json
+{"data":{"categoryId":4,"categoryName":"Food","month":"2026-01","amountCents":10000,"spentCents":12500,"remainingCents":-2500,"utilizationPercent":125,"status":"over"}}
+```
+
+Body fields other than amountCents are rejected; amountCents must be a JSON safe integer in 1..100000000. Route IDs use strict positive safe-integer parsing. Both mutations reject query parameters, invalid months, nonexistent categories and income categories with 400. DELETE `/api/budgets/4/2026-01` returns **204 with no body**; repeating it returns 404. Only the budget limit is deleted; transactions persist. An unavailable database, unsafe aggregate, SQLite SUM overflow or unexpected write/readback failure returns the standard generic 500 envelope. Writes and readback roll back together. No derived totals are stored.

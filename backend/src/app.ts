@@ -5,6 +5,7 @@ import { errorHandler, notFound } from './middleware/errors.js';
 import { createCategoryRouter } from './routes/categories.js';
 import { createTransactionRouter } from './routes/transactions.js';
 import { createSummaryRouter } from './routes/summary.js';
+import { createBudgetRouter } from './routes/budgets.js';
 
 // Importing the app never starts a listener or opens a database.
 export function createApp(database?: Database.Database) {
@@ -24,6 +25,7 @@ export function createApp(database?: Database.Database) {
     app.use('/api/categories', createCategoryRouter(database));
     app.use('/api/transactions', createTransactionRouter(database));
     app.use('/api/summary', createSummaryRouter(database));
+    app.use('/api/budgets', createBudgetRouter(database));
   }
   app.use(notFound);
   app.use(errorHandler);
