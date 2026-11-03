@@ -3,8 +3,10 @@ import { useMonth } from '../context/MonthContext';
 import {
   ApiClientError,
   createTransaction,
+  deleteTransaction,
   fetchCategories,
   fetchTransactions,
+  updateTransaction,
   type Category,
   type CreateTransactionPayload,
   type Transaction,
@@ -53,6 +55,13 @@ export interface UseTransactionsResult {
   addTransaction: (
     payload: CreateTransactionPayload,
   ) => Promise<{ success: boolean; refreshFailed?: boolean; error?: string }>;
+  editTransaction: (
+    id: number,
+    payload: CreateTransactionPayload,
+  ) => Promise<{ success: boolean; refreshFailed?: boolean; error?: string }>;
+  removeTransaction: (
+    id: number,
+  ) => Promise<{ success: boolean; refreshFailed?: boolean; error?: string }>;
 }
 
 export function useTransactions(): UseTransactionsResult {
@@ -94,63 +103,66 @@ export function useTransactions(): UseTransactionsResult {
   }, []);
 
   // Fetch transactions based on filters and page
-  const loadTransactions = useCallback(async (): Promise<void> => {
-    const requestId = ++activeRequestIdRef.current;
+  const loadTransactions = useCallback(
+    async (targetPage = page): Promise<void> => {
+      const requestId = ++activeRequestIdRef.current;
 
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    setIsLoading(true);
-    setError(null);
-
-    const queryFilters: TransactionFilters = {
-      type: filters.type,
-      page,
-      pageSize,
-    };
-    if (filters.categoryId > 0) {
-      queryFilters.categoryId = filters.categoryId;
-    }
-    if (filters.startDate) {
-      queryFilters.startDate = filters.startDate;
-    }
-    if (filters.endDate) {
-      queryFilters.endDate = filters.endDate;
-    }
-    const trimmedQ = filters.q.trim();
-    if (trimmedQ) {
-      queryFilters.q = trimmedQ;
-    }
-
-    try {
-      const response = await fetchTransactions(queryFilters, controller.signal);
-
-      if (activeRequestIdRef.current === requestId) {
-        setTransactions(response.data);
-        setMeta(response.meta);
-        setError(null);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
-    } catch (err: unknown) {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      if (activeRequestIdRef.current === requestId) {
-        const message =
-          err instanceof ApiClientError
-            ? err.message
-            : err instanceof Error
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      setIsLoading(true);
+      setError(null);
+
+      const queryFilters: TransactionFilters = {
+        type: filters.type,
+        page: targetPage,
+        pageSize,
+      };
+      if (filters.categoryId > 0) {
+        queryFilters.categoryId = filters.categoryId;
+      }
+      if (filters.startDate) {
+        queryFilters.startDate = filters.startDate;
+      }
+      if (filters.endDate) {
+        queryFilters.endDate = filters.endDate;
+      }
+      const trimmedQ = filters.q.trim();
+      if (trimmedQ) {
+        queryFilters.q = trimmedQ;
+      }
+
+      try {
+        const response = await fetchTransactions(queryFilters, controller.signal);
+
+        if (activeRequestIdRef.current === requestId) {
+          setTransactions(response.data);
+          setMeta(response.meta);
+          setError(null);
+        }
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (activeRequestIdRef.current === requestId) {
+          const message =
+            err instanceof ApiClientError
               ? err.message
-              : 'Failed to load transactions';
-        setError(message);
+              : err instanceof Error
+                ? err.message
+                : 'Failed to load transactions';
+          setError(message);
+        }
+        throw err;
+      } finally {
+        if (activeRequestIdRef.current === requestId) {
+          setIsLoading(false);
+        }
       }
-      throw err;
-    } finally {
-      if (activeRequestIdRef.current === requestId) {
-        setIsLoading(false);
-      }
-    }
-  }, [filters, page, pageSize]);
+    },
+    [filters, page, pageSize],
+  );
 
   useEffect(() => {
     void loadTransactions().catch(() => {});
@@ -184,7 +196,7 @@ export function useTransactions(): UseTransactionsResult {
     try {
       await loadTransactions();
     } catch {
-      // Caught in loadTransactions
+      // Handled in loadTransactions
     }
   }, [loadTransactions]);
 
@@ -194,7 +206,7 @@ export function useTransactions(): UseTransactionsResult {
     ): Promise<{ success: boolean; refreshFailed?: boolean; error?: string }> => {
       try {
         await createTransaction(payload);
-        // Requirement 20: Refresh dashboard summary data
+        // Refresh dashboard summary data
         notifyTransactionCreated();
 
         // Refresh transactions list
@@ -202,7 +214,7 @@ export function useTransactions(): UseTransactionsResult {
           await loadTransactions();
           return { success: true };
         } catch {
-          // Requirement 22: Refresh failure is not misreported as save failure
+          // Requirement 17 & 22: Refresh failure is not misreported as save failure
           return { success: true, refreshFailed: true };
         }
       } catch (err: unknown) {
@@ -218,6 +230,71 @@ export function useTransactions(): UseTransactionsResult {
     [loadTransactions, notifyTransactionCreated],
   );
 
+  const editTransaction = useCallback(
+    async (
+      id: number,
+      payload: CreateTransactionPayload,
+    ): Promise<{ success: boolean; refreshFailed?: boolean; error?: string }> => {
+      try {
+        await updateTransaction(id, payload);
+        // Refresh dashboard summary data
+        notifyTransactionCreated();
+
+        // Refresh transactions list
+        try {
+          await loadTransactions(page);
+          return { success: true };
+        } catch {
+          return { success: true, refreshFailed: true };
+        }
+      } catch (err: unknown) {
+        const message =
+          err instanceof ApiClientError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : 'Failed to update transaction';
+        return { success: false, error: message };
+      }
+    },
+    [page, loadTransactions, notifyTransactionCreated],
+  );
+
+  const removeTransaction = useCallback(
+    async (
+      id: number,
+    ): Promise<{ success: boolean; refreshFailed?: boolean; error?: string }> => {
+      try {
+        await deleteTransaction(id);
+        // Refresh dashboard summary data
+        notifyTransactionCreated();
+
+        // Requirement 16: Adjust pagination after deleting the final row of a page
+        const targetPage = transactions.length === 1 && page > 1 ? page - 1 : page;
+        if (targetPage !== page) {
+          setPageState(targetPage);
+        }
+
+        // Refresh transactions list
+        try {
+          await loadTransactions(targetPage);
+          return { success: true };
+        } catch {
+          return { success: true, refreshFailed: true };
+        }
+      } catch (err: unknown) {
+        const message =
+          err instanceof ApiClientError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : 'Failed to delete transaction';
+        return { success: false, error: message };
+      }
+    },
+    [transactions.length, page, loadTransactions, notifyTransactionCreated],
+  );
+
   return {
     transactions,
     meta,
@@ -231,5 +308,7 @@ export function useTransactions(): UseTransactionsResult {
     setPage,
     refresh,
     addTransaction,
+    editTransaction,
+    removeTransaction,
   };
 }

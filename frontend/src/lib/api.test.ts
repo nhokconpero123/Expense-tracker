@@ -3,9 +3,11 @@ import {
   ApiClientError,
   buildTransactionQueryString,
   createTransaction,
+  deleteTransaction,
   fetchCategories,
   fetchMonthlySummary,
   fetchTransactions,
+  updateTransaction,
 } from './api';
 
 describe('buildTransactionQueryString', () => {
@@ -340,3 +342,134 @@ describe('createTransaction', () => {
     });
   });
 });
+
+describe('updateTransaction', () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('sends complete PUT payload with empty string for omitted note', async () => {
+    const payload = {
+      type: 'expense' as const,
+      amountCents: 2500,
+      categoryId: 4,
+      date: '2026-11-04',
+      // note omitted
+    };
+
+    const mockUpdated = {
+      id: 5,
+      ...payload,
+      note: '',
+      categoryName: 'Food',
+      createdAt: '2026-11-01T10:00:00Z',
+      updatedAt: '2026-11-04T12:00:00Z',
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: mockUpdated }),
+    } as unknown as Response);
+
+    const result = await updateTransaction(5, payload);
+    expect(result).toEqual(mockUpdated);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/transactions/5',
+      expect.objectContaining({
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'expense',
+          amountCents: 2500,
+          categoryId: 4,
+          date: '2026-11-04',
+          note: '',
+        }),
+      }),
+    );
+  });
+
+  it('throws ApiClientError when updating missing transaction (404)', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Transaction not found',
+        },
+      }),
+    } as unknown as Response);
+
+    await expect(
+      updateTransaction(999, {
+        type: 'expense',
+        amountCents: 1000,
+        categoryId: 4,
+        date: '2026-11-04',
+      }),
+    ).rejects.toMatchObject({
+      name: 'ApiClientError',
+      status: 404,
+      message: 'Transaction not found',
+    });
+  });
+});
+
+describe('deleteTransaction', () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('resolves on successful 204 No Content', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+    } as unknown as Response);
+
+    await expect(deleteTransaction(12)).resolves.toBeUndefined();
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/transactions/12',
+      expect.objectContaining({
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      }),
+    );
+  });
+
+  it('throws ApiClientError when deleting missing transaction (404)', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Transaction not found',
+        },
+      }),
+    } as unknown as Response);
+
+    await expect(deleteTransaction(999)).rejects.toMatchObject({
+      name: 'ApiClientError',
+      status: 404,
+      message: 'Transaction not found',
+    });
+  });
+});
+

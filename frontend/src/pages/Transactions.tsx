@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AddTransactionDialog } from '../components/AddTransactionDialog';
+import { DeleteTransactionDialog } from '../components/DeleteTransactionDialog';
 import { TransactionFiltersBar } from '../components/TransactionFiltersBar';
 import { TransactionTable } from '../components/TransactionTable';
 import { INITIAL_FILTERS, useTransactions } from '../hooks/useTransactions';
+import type { CreateTransactionPayload, Transaction } from '../lib/api';
 
 export function Transactions() {
   const {
@@ -17,9 +19,21 @@ export function Transactions() {
     setPage,
     refresh,
     addTransaction,
+    editTransaction,
+    removeTransaction,
   } = useTransactions();
 
+  // Dialog & Active Target states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Focus restoration reference
+  const activeTriggerRef = useRef<HTMLElement | null>(null);
+
+  // Status feedback banners
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
   const [warningBanner, setWarningBanner] = useState<string | null>(null);
 
@@ -30,14 +44,14 @@ export function Transactions() {
     filters.endDate !== INITIAL_FILTERS.endDate ||
     filters.q !== INITIAL_FILTERS.q;
 
-  const handleAddSubmit = async (payload: Parameters<typeof addTransaction>[0]) => {
+  // Add transaction handler
+  const handleAddSubmit = async (payload: CreateTransactionPayload) => {
     setSuccessBanner(null);
     setWarningBanner(null);
 
     const result = await addTransaction(payload);
     if (result.success) {
       if (result.refreshFailed) {
-        // Requirement 22: Save succeeded but refresh failed
         setWarningBanner(
           'Transaction was saved successfully, but the list failed to refresh. Please click refresh below.',
         );
@@ -51,6 +65,120 @@ export function Transactions() {
     return result;
   };
 
+  // Edit transaction handler
+  const handleEditSubmit = async (payload: CreateTransactionPayload) => {
+    if (!editingTransaction) {
+      return { success: false, error: 'No transaction selected for editing' };
+    }
+
+    setSuccessBanner(null);
+    setWarningBanner(null);
+
+    const result = await editTransaction(editingTransaction.id, payload);
+    if (result.success) {
+      if (result.refreshFailed) {
+        setWarningBanner(
+          'Transaction was updated successfully, but the list failed to refresh. Please click refresh below.',
+        );
+      } else {
+        setSuccessBanner('Transaction updated successfully.');
+        setTimeout(() => {
+          setSuccessBanner(null);
+        }, 5000);
+      }
+    }
+    return result;
+  };
+
+  // Delete transaction handler
+  const handleDeleteConfirm = async () => {
+    if (!deletingTransaction) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+    setSuccessBanner(null);
+    setWarningBanner(null);
+
+    try {
+      const result = await removeTransaction(deletingTransaction.id);
+      if (result.success) {
+        const trigger = activeTriggerRef.current;
+        setDeletingTransaction(null);
+        setIsDeleting(false);
+
+        if (result.refreshFailed) {
+          setWarningBanner(
+            'Transaction was deleted successfully, but the list failed to refresh. Please click refresh below.',
+          );
+        } else {
+          setSuccessBanner('Transaction deleted successfully.');
+          setTimeout(() => {
+            setSuccessBanner(null);
+          }, 5000);
+        }
+
+        setTimeout(() => {
+          trigger?.focus();
+        }, 50);
+      } else {
+        setDeleteError(result.error || 'Failed to delete transaction. Please try again.');
+        setIsDeleting(false);
+      }
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setIsDeleting(false);
+    }
+  };
+
+  // Open Edit Dialog
+  const handleOpenEdit = (tx: Transaction, triggerElement: HTMLElement | null) => {
+    activeTriggerRef.current = triggerElement;
+    setEditingTransaction(tx);
+  };
+
+  // Close Edit Dialog
+  const handleCloseEdit = () => {
+    const trigger = activeTriggerRef.current;
+    setEditingTransaction(null);
+    setTimeout(() => {
+      trigger?.focus();
+    }, 50);
+  };
+
+  // Open Delete Dialog
+  const handleOpenDelete = (tx: Transaction, triggerElement: HTMLElement | null) => {
+    activeTriggerRef.current = triggerElement;
+    setDeleteError(null);
+    setDeletingTransaction(tx);
+  };
+
+  // Close Delete Dialog
+  const handleCloseDelete = () => {
+    const trigger = activeTriggerRef.current;
+    setDeletingTransaction(null);
+    setDeleteError(null);
+    setTimeout(() => {
+      trigger?.focus();
+    }, 50);
+  };
+
+  // Open Add Dialog
+  const handleOpenAdd = (triggerElement?: HTMLElement | null) => {
+    if (triggerElement) {
+      activeTriggerRef.current = triggerElement;
+    }
+    setIsAddModalOpen(true);
+  };
+
+  // Close Add Dialog
+  const handleCloseAdd = () => {
+    const trigger = activeTriggerRef.current;
+    setIsAddModalOpen(false);
+    setTimeout(() => {
+      trigger?.focus();
+    }, 50);
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -60,7 +188,7 @@ export function Transactions() {
             Transactions
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            Browse, search, and record personal income and expense transactions.
+            Browse, search, record, and manage personal income and expense transactions.
           </p>
         </div>
 
@@ -84,29 +212,17 @@ export function Transactions() {
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-              <path d="M21 3v5h-5" />
-              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-              <path d="M3 21v-5h5" />
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
             </svg>
           </button>
 
           {/* Add Transaction Button */}
           <button
             type="button"
-            onClick={() => setIsAddModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            onClick={(e) => handleOpenAdd(e.currentTarget)}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           >
-            <svg
-              className="h-4 w-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -115,12 +231,11 @@ export function Transactions() {
         </div>
       </div>
 
-      {/* Success Notification Banner */}
+      {/* Success Banner */}
       {successBanner && (
         <div
           role="status"
-          aria-live="polite"
-          className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-4 text-sm text-emerald-300"
+          className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-4 text-sm text-emerald-200"
         >
           <div className="flex items-center gap-2.5">
             <svg
@@ -151,16 +266,15 @@ export function Transactions() {
         </div>
       )}
 
-      {/* Warning Notification Banner (Requirement 22) */}
+      {/* Warning Banner (e.g. Save succeeded but Refresh failed) */}
       {warningBanner && (
         <div
           role="alert"
-          aria-live="assertive"
-          className="flex items-start justify-between rounded-xl border border-amber-500/30 bg-amber-950/40 p-4 text-sm text-amber-200"
+          className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-950/40 p-4 text-sm text-amber-200"
         >
-          <div className="flex items-start gap-2.5">
+          <div className="flex items-center gap-2.5">
             <svg
-              className="h-5 w-5 shrink-0 text-amber-400 mt-0.5"
+              className="h-5 w-5 text-amber-400"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -169,14 +283,11 @@ export function Transactions() {
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" />
               <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
-            <div>
-              <p className="font-semibold text-amber-300">Saved with refresh issue</p>
-              <p className="mt-0.5">{warningBanner}</p>
-            </div>
+            <span>{warningBanner}</span>
           </div>
           <button
             type="button"
@@ -242,17 +353,39 @@ export function Transactions() {
         onPageChange={setPage}
         isFiltered={isFiltered}
         onResetFilters={resetFilters}
-        onOpenAddModal={() => setIsAddModalOpen(true)}
+        onOpenAddModal={() => handleOpenAdd()}
+        onEditTransaction={handleOpenEdit}
+        onDeleteTransaction={handleOpenDelete}
       />
 
       {/* Add Transaction Modal */}
       <AddTransactionDialog
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={handleCloseAdd}
         categories={categories}
         onSubmit={handleAddSubmit}
+        mode="create"
+      />
+
+      {/* Edit Transaction Modal */}
+      <AddTransactionDialog
+        isOpen={Boolean(editingTransaction)}
+        onClose={handleCloseEdit}
+        categories={categories}
+        onSubmit={handleEditSubmit}
+        mode="edit"
+        initialTransaction={editingTransaction}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteTransactionDialog
+        isOpen={Boolean(deletingTransaction)}
+        transaction={deletingTransaction}
+        onClose={handleCloseDelete}
+        onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
+        deleteError={deleteError}
       />
     </div>
   );
 }
-

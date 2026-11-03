@@ -320,3 +320,102 @@ export async function createTransaction(
 
   return json.data;
 }
+
+/**
+ * Replaces an existing transaction through PUT /api/transactions/:id.
+ * Complete replacement semantics: omitted note becomes an empty string.
+ */
+export async function updateTransaction(
+  id: number,
+  payload: CreateTransactionPayload,
+  signal?: AbortSignal,
+): Promise<Transaction> {
+  const init: RequestInit = {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      type: payload.type,
+      amountCents: payload.amountCents,
+      categoryId: payload.categoryId,
+      date: payload.date,
+      note: payload.note ?? '',
+    }),
+  };
+  if (signal) {
+    init.signal = signal;
+  }
+
+  const response = await fetch(`/api/transactions/${id}`, init);
+
+  if (!response.ok) {
+    let code: string | undefined;
+    let message = `Failed to update transaction (status ${response.status})`;
+    let fields: Record<string, string> | undefined;
+
+    try {
+      const errorJson = (await response.json()) as ApiErrorResponse;
+      if (errorJson?.error) {
+        code = errorJson.error.code;
+        message = errorJson.error.message || message;
+        fields = errorJson.error.fields;
+      }
+    } catch {
+      // Fallback
+    }
+
+    throw new ApiClientError(message, response.status, code, fields);
+  }
+
+  const json = (await response.json()) as ApiSuccessResponse<Transaction>;
+  if (!json || typeof json !== 'object' || !json.data) {
+    throw new ApiClientError('Invalid response shape for updated transaction', 500, 'INVALID_RESPONSE');
+  }
+
+  return json.data;
+}
+
+/**
+ * Deletes a transaction through DELETE /api/transactions/:id.
+ * Handles empty 204 No Content response on success.
+ */
+export async function deleteTransaction(
+  id: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  const init: RequestInit = {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+    },
+  };
+  if (signal) {
+    init.signal = signal;
+  }
+
+  const response = await fetch(`/api/transactions/${id}`, init);
+
+  if (response.status === 204) {
+    return;
+  }
+
+  let code: string | undefined;
+  let message = `Failed to delete transaction (status ${response.status})`;
+  let fields: Record<string, string> | undefined;
+
+  try {
+    const errorJson = (await response.json()) as ApiErrorResponse;
+    if (errorJson?.error) {
+      code = errorJson.error.code;
+      message = errorJson.error.message || message;
+      fields = errorJson.error.fields;
+    }
+  } catch {
+    // Fallback
+  }
+
+  throw new ApiClientError(message, response.status, code, fields);
+}
+

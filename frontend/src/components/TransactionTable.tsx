@@ -10,6 +10,8 @@ export interface TransactionTableProps {
   isFiltered: boolean;
   onResetFilters: () => void;
   onOpenAddModal: () => void;
+  onEditTransaction?: (transaction: Transaction, triggerElement: HTMLElement | null) => void;
+  onDeleteTransaction?: (transaction: Transaction, triggerElement: HTMLElement | null) => void;
 }
 
 export function TransactionTable({
@@ -20,6 +22,8 @@ export function TransactionTable({
   isFiltered,
   onResetFilters,
   onOpenAddModal,
+  onEditTransaction,
+  onDeleteTransaction,
 }: TransactionTableProps) {
   const { page, totalPages, total, pageSize } = meta;
 
@@ -50,39 +54,44 @@ export function TransactionTable({
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            <rect width="18" height="18" x="3" y="3" rx="2" />
-            <line x1="3" y1="9" x2="21" y2="9" />
-            <line x1="9" y1="21" x2="9" y2="9" />
+            <rect x="2" y="5" width="20" height="14" rx="2" />
+            <line x1="2" y1="10" x2="22" y2="10" />
           </svg>
         </div>
+
         <h3 className="mt-4 text-base font-semibold text-slate-200">
           {isFiltered ? 'No transactions match your filters' : 'No transactions recorded yet'}
         </h3>
-        <p className="mt-1.5 max-w-sm text-sm text-slate-400 leading-relaxed">
+        <p className="mt-1 text-sm text-slate-400 max-w-sm">
           {isFiltered
-            ? 'Try adjusting your type, category, date bounds, or note search criteria.'
+            ? 'Try adjusting your type, category, date range, or search term to see more results.'
             : 'Get started by recording your first income or expense transaction.'}
         </p>
-        <div className="mt-5">
+
+        <div className="mt-5 flex items-center gap-3">
           {isFiltered ? (
             <button
               type="button"
               onClick={onResetFilters}
-              className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+              className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
             >
-              Clear filters
+              Reset Filters
             </button>
           ) : (
             <button
               type="button"
               onClick={onOpenAddModal}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
             >
-              Add your first transaction
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>Add Transaction</span>
             </button>
           )}
         </div>
@@ -113,12 +122,18 @@ export function TransactionTable({
                 <th scope="col" className="py-3 px-4 sm:px-6 text-right">
                   Amount
                 </th>
+                <th scope="col" className="py-3 px-4 sm:px-6 text-right">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/70">
               {transactions.map((tx) => {
                 const isIncome = tx.type === 'income';
                 const formattedAmount = formatCentsToUsd(tx.amountCents);
+                const readableAmount = isIncome ? `+${formattedAmount}` : `-${formattedAmount}`;
+                const editLabel = `Edit transaction from ${formatDateDisplay(tx.date)} for ${readableAmount}`;
+                const deleteLabel = `Delete transaction from ${formatDateDisplay(tx.date)} for ${readableAmount}`;
 
                 return (
                   <tr
@@ -156,8 +171,58 @@ export function TransactionTable({
                     {/* Amount */}
                     <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap font-mono font-semibold">
                       <span className={isIncome ? 'text-emerald-400' : 'text-rose-400'}>
-                        {isIncome ? `+${formattedAmount}` : `-${formattedAmount}`}
+                        {readableAmount}
                       </span>
+                    </td>
+
+                    {/* Actions (Edit / Delete) */}
+                    <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => onEditTransaction?.(tx, e.currentTarget)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 transition-colors"
+                          aria-label={editLabel}
+                          title="Edit transaction"
+                        >
+                          <svg
+                            className="h-4 w-4"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => onDeleteTransaction?.(tx, e.currentTarget)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-950/50 hover:text-rose-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 transition-colors"
+                          aria-label={deleteLabel}
+                          title="Delete transaction"
+                        >
+                          <svg
+                            className="h-4 w-4"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            <line x1="10" y1="11" x2="10" y2="17" />
+                            <line x1="14" y1="11" x2="14" y2="17" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -206,4 +271,3 @@ export function TransactionTable({
     </div>
   );
 }
-

@@ -3,6 +3,7 @@ import { renderToString } from 'react-dom/server';
 import { TransactionTable } from './TransactionTable';
 import { TransactionFiltersBar } from './TransactionFiltersBar';
 import { AddTransactionDialog } from './AddTransactionDialog';
+import { DeleteTransactionDialog } from './DeleteTransactionDialog';
 import type { Category, Transaction } from '../lib/api';
 import { INITIAL_FILTERS } from '../hooks/useTransactions';
 
@@ -38,8 +39,16 @@ const mockTransactions: Transaction[] = [
   },
 ];
 
+// Extract named constants with type guards to satisfy noUncheckedIndexedAccess.
+// Tests that require a valid transaction will fail clearly if the fixture is missing.
+const mockIncomeTransaction: Transaction = (() => {
+  const tx = mockTransactions[0];
+  if (!tx) throw new Error('Test fixture mockTransactions[0] is missing');
+  return tx;
+})();
+
 describe('TransactionTable component', () => {
-  it('renders transactions with dates, types, categories, amounts, and notes', () => {
+  it('renders transactions with dates, types, categories, amounts, notes, and actions', () => {
     const html = renderToString(
       <TransactionTable
         transactions={mockTransactions}
@@ -49,6 +58,8 @@ describe('TransactionTable component', () => {
         isFiltered={false}
         onResetFilters={() => {}}
         onOpenAddModal={() => {}}
+        onEditTransaction={() => {}}
+        onDeleteTransaction={() => {}}
       />,
     );
 
@@ -61,6 +72,9 @@ describe('TransactionTable component', () => {
     expect(html).toContain('Showing');
     expect(html).toContain('Page');
     expect(html).toContain('transactions');
+    expect(html).toContain('Actions');
+    expect(html).toContain('aria-label="Edit transaction from Nov 1, 2026 for +$2,000.00"');
+    expect(html).toContain('aria-label="Delete transaction from Nov 1, 2026 for +$2,000.00"');
   });
 
   it('renders loading skeleton when isLoading is true', () => {
@@ -94,7 +108,7 @@ describe('TransactionTable component', () => {
     );
 
     expect(html).toContain('No transactions recorded yet');
-    expect(html).toContain('Add your first transaction');
+    expect(html).toContain('Add Transaction');
   });
 
   it('renders filtered empty state when transactions list is empty due to active filters', () => {
@@ -111,7 +125,7 @@ describe('TransactionTable component', () => {
     );
 
     expect(html).toContain('No transactions match your filters');
-    expect(html).toContain('Clear filters');
+    expect(html).toContain('Reset Filters');
   });
 
   it('renders disabled pagination buttons at boundaries', () => {
@@ -170,13 +184,14 @@ describe('TransactionFiltersBar component', () => {
 });
 
 describe('AddTransactionDialog component', () => {
-  it('renders accessible dialog with type, amount, category, date, and note controls', () => {
+  it('renders accessible dialog in create mode with default controls', () => {
     const html = renderToString(
       <AddTransactionDialog
         isOpen={true}
         onClose={() => {}}
         categories={mockCategories}
         onSubmit={async () => ({ success: true })}
+        mode="create"
       />,
     );
 
@@ -186,9 +201,27 @@ describe('AddTransactionDialog component', () => {
     expect(html).toContain('Income');
     expect(html).toContain('Amount (USD)');
     expect(html).toContain('Category');
-    expect(html).toContain('Transaction Date');
+    expect(html).toContain('Date');
     expect(html).toContain('Note (Optional)');
     expect(html).toContain('Save Transaction');
+  });
+
+  it('renders accessible dialog in edit mode with prefilled transaction data and Save Changes button', () => {
+    const html = renderToString(
+      <AddTransactionDialog
+        isOpen={true}
+        onClose={() => {}}
+        categories={mockCategories}
+        onSubmit={async () => ({ success: true })}
+        mode="edit"
+        initialTransaction={mockIncomeTransaction}
+      />,
+    );
+
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('Edit Transaction');
+    expect(html).toContain('Save Changes');
+    expect(html).toContain('Salary');
   });
 
   it('does not render when isOpen is false', () => {
@@ -202,5 +235,56 @@ describe('AddTransactionDialog component', () => {
     );
 
     expect(html).toBe('');
+  });
+});
+
+describe('DeleteTransactionDialog component', () => {
+  it('renders accessible delete confirmation dialog identifying the transaction details', () => {
+    const html = renderToString(
+      <DeleteTransactionDialog
+        isOpen={true}
+        transaction={mockIncomeTransaction}
+        onClose={() => {}}
+        onConfirm={async () => {}}
+        isDeleting={false}
+        deleteError={null}
+      />,
+    );
+
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('Delete Transaction');
+    expect(html).toContain('Are you sure you want to permanently remove this transaction?');
+    expect(html).toContain('Nov 1, 2026');
+    expect(html).toContain('+$2,000.00');
+    expect(html).toContain('Salary');
+    expect(html).toContain('Bi-weekly paycheck');
+    expect(html).toContain('Cancel');
+    expect(html).toContain('Delete Transaction');
+  });
+
+  it('does not render when isOpen is false or transaction is null', () => {
+    const htmlClosed = renderToString(
+      <DeleteTransactionDialog
+        isOpen={false}
+        transaction={mockIncomeTransaction}
+        onClose={() => {}}
+        onConfirm={async () => {}}
+        isDeleting={false}
+        deleteError={null}
+      />,
+    );
+    expect(htmlClosed).toBe('');
+
+    const htmlNull = renderToString(
+      <DeleteTransactionDialog
+        isOpen={true}
+        transaction={null}
+        onClose={() => {}}
+        onConfirm={async () => {}}
+        isDeleting={false}
+        deleteError={null}
+      />,
+    );
+    expect(htmlNull).toBe('');
   });
 });
