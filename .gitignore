@@ -22,7 +22,6 @@ pnpm-debug.log*
 # Env & secrets
 .env
 .env.*
-.env.example
 *.pem
 *.key
 *.p12
