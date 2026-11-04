@@ -212,23 +212,31 @@ Current verification: **399 frontend + 962 backend = 1,361 Vitest cases**; **44 
 - Historical uncertainty: the caller of three earlier summary proxy attempts remains **NOT VERIFIED**. Current isolation passes repeated normal and negative checks; this mitigates the current risk without establishing the historical source.
 - Full screen-reader speech, VS Code embedded-preview acceptance, fresh-install reproducibility, and backup restoration remain unverified.
 - Dashboard independently rounded category percentages can total 101%; exact USD totals remain correct.
-- Portfolio screenshots remain planned, not supplied. Explicit Host/Origin hardening is a possible follow-up; the unauthenticated API must remain local-only.
+- Portfolio screenshots below use fictional data. Explicit Host/Origin hardening is a possible follow-up; the unauthenticated API must remain local-only.
 
 No commit, publication, or final release approval is implied by these results.
 
 ## Screenshots
 
-No portfolio screenshots are supplied by this documentation task. The following are **planned filenames only**, not existing images or download links:
+These are real Chromium captures of the built application using **fictional November 2026 demo data** in a separate local SQLite database. No personal records are shown. The dataset contains 13 transactions: $3,950.00 income, $2,155.00 expenses, and a $1,795.00 balance. Groceries and dining use the existing Food category; rent uses Housing and travel uses Transport. Budgets demonstrate under budget, at limit, over budget, and no budget states.
 
-| Planned filename | Capture to add later |
-| --- | --- |
-| `docs/screenshots/dashboard.png` | Selected-month totals using synthetic records |
-| `docs/screenshots/transactions.png` | Filtered ledger and pagination |
-| `docs/screenshots/budgets.png` | No-budget, under, at-limit and over-budget examples |
-| `docs/screenshots/analytics.png` | Daily/category charts and selected-category details |
-| `docs/screenshots/analytics-table.png` | Readable daily/category values |
+**Monthly Dashboard**
 
-For later capture, use a separate disposable database with synthetic records, keep it on loopback, and test 360/768/1440px browser viewports. No demo-data generator is currently provided. Verify images and captions before linking them here; the current `.gitignore` broadly ignores new docs assets, so future screenshot tracking needs a narrow reviewed exception.
+![November 2026 dashboard with fictional income, expenses, balance and category totals](docs/screenshots/dashboard.png)
+
+**Transactions**
+
+![Fictional November 2026 transactions with filters, dates, categories and exact USD amounts](docs/screenshots/transactions.png)
+
+**Monthly Budgets**
+
+![Monthly budgets showing Food and Entertainment over budget, Housing at limit and other categories under budget](docs/screenshots/budgets.png)
+
+**Spending Analytics**
+
+![Daily spending and spending-by-category charts populated with fictional November 2026 expenses](docs/screenshots/analytics.png)
+
+Captured at a 1440-pixel desktop width; full-page images preserve the final rows and cards. The dedicated local database is `backend/data/portfolio-demo/portfolio-screenshots.sqlite` and remains excluded from Git. Screenshots do not imply public deployment or production security. Existing development data and `demo.sqlite` were preserved. No reusable demo-data generator is included.
 
 ## Troubleshooting
 

@@ -70,3 +70,11 @@ AGENTS.md
 playwright-report/
 test-results/
 screenshots/
+
+# Portfolio screenshots: allow only the four reviewed application captures.
+!docs/screenshots/
+docs/screenshots/*
+!docs/screenshots/dashboard.png
+!docs/screenshots/transactions.png
+!docs/screenshots/budgets.png
+!docs/screenshots/analytics.png
