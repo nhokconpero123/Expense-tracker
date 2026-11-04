@@ -1,6 +1,6 @@
 # T13 — Analytics and Charts
 
-Implemented November 3, 2026. Ready for code review; live-browser acceptance remains unverified.
+Implemented November 3, 2026. V1/V2 follow-up completed: mounted Chrome regression tests and responsive acceptance checks now pass. See the current verification section below; earlier implementation notes are historical.
 
 ## Data sourcing and integrity
 
@@ -58,7 +58,8 @@ All commands run from the repository root:
 | --- | --- |
 | `npm.cmd run typecheck` | Passed, frontend and backend, exit 0. |
 | `npm.cmd run build` | Passed, frontend and backend, exit 0. |
-| `npm.cmd test` | 1,355 passed: 393 frontend tests in 16 files and 962 backend tests in 17 files, exit 0. |
+| `npm.cmd test` | 1,358 passed: 396 frontend tests in 17 files and 962 backend tests in 17 files, exit 0. |
+| `npm.cmd run test:browser --workspace frontend` | 13 passed, 0 failed in actual headless Chrome 156.0.8078.80, exit 0. Run separately from Vitest. |
 
 The final verified T12 baseline was 1,242 tests: 280 frontend and 962 backend. Initial T13 added 78 frontend tests for a verified 1,320-test baseline. The D1–D3 changes add 35 more (19 tooltip, 4 selected-style, and 12 disclosure/state cases), giving **113** added frontend tests across T13. Backend tests remain unchanged. The original pre-T12 baseline was 1,164 tests. Existing T01–T12 tests remain present and passing; one navigation assertion was updated for the newly available page.
 
@@ -88,28 +89,87 @@ Files changed specifically for D1–D3:
 - Created `frontend/src/components/DailySpendingTable.test.tsx`.
 - Updated `docs/ARCHITECTURE.md` and this report.
 
-## Responsive and keyboard verification
+## Current V1/V2 verification follow-up
 
-| Check | Status |
+This follow-up started from HEAD `521b261` (`feat T13: add analytics page with spending charts and summary`). It changes tests, test tooling, one npm script, and this report only. Production components, hooks, financial logic, backend, database, schema, and dependency versions are unchanged.
+
+### V1: mounted lifecycle acceptance
+
+`frontend/src/test/analyticsBrowserHarness.tsx` mounts the production Analytics page, MonthProvider, summary hook, loader, controls, tables, and Recharts in a real Chrome DOM. It is loaded only by `frontend/test/browser/analytics.html`, never by the application entry point or production build. Its synthetic summary fixtures are test data only. The page replaces fetch before mounting, accepts only GET summary requests, and never contacts a backend. A separate test-only button increments the real transaction revision; no transaction mutation is performed.
+
+`frontend/test/browser/analytics.browser.mjs` starts a loopback-only Vite server and a new headless Chrome profile. It uses the Chrome DevTools Protocol through Node's built-in WebSocket without new dependencies. Run from the repository root:
+
+```text
+npm.cmd run test:browser --workspace frontend
+```
+
+Chrome defaults to the installed Windows path `C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`; set `CHROME_PATH` for another installation. The browser suite is separate from `npm.cmd test` so the existing Node-only Vitest suite does not require Chrome.
+
+Actual result: **13 passed, 0 failed**, Chrome **156.0.8078.80**:
+
+1. Tab, Shift+Tab, Enter and Space operate view/disclosure buttons; expansion retains focus, exposes aria-expanded, and displays a computed focus ring.
+2. Expanded Table View survives an actual mounted same-month loading to successful refresh transition with updated amounts.
+3. Expanded Table View survives a failed refresh and successful Retry.
+4. A real context revision refresh passes through loading and retains presentation state.
+5. A held next-month response followed by returning to the original month resets the mounted view/disclosure; releasing the obsolete response does not replace current data.
+6. Computed active/inactive view background and border differ, selected underline is present, and category keyboard selection/clear updates exact details.
+7. At 360px, actual chart and control geometry fits the viewport, four X-axis labels do not overlap, large exact USD values render, and tooltip hover stays inside the viewport. Expanded table has 29 rows without horizontal page overflow.
+8. The same checks pass at 768px.
+9. The same checks pass at 1440px.
+10. Actual mouse input on the donut selects the matching category and displays its exact category tooltip.
+11. An all-zero month shows one concise message, no collapsed daily table, and all 29 zero days when expanded.
+12. Emulated prefers-reduced-motion disables the loading pulse; all intercepted API requests are GET summary reads.
+13. Chrome's actual accessibility tree exposes table semantics and the disclosure button's expanded state.
+
+The viewport checks temporarily set body/root horizontal overflow to visible and inspect scroll width, control/chart/axis bounding boxes, and label spacing. They do not treat overflow-x-hidden as evidence. Screenshots at 360/768/1440px were captured and visually inspected, including the maximum-safe-cents tooltip. The page is scrolled to show the chart tooltip in these screenshots; they are not full-page screenshots.
+
+Final-run screenshots and the isolated synthetic test profile are in:
+
+```text
+C:\Users\chauv\AppData\Local\Temp\expense-analytics-browser-uOBpVy
+```
+
+Earlier browser harness attempts exposed missing keyboard protocol text and Recharts 3's separate tick-label layer, plus an escaped CSS selector issue in the test runner. Correcting those test-driver assumptions produced the passing results above; no production defect was reproduced or application change needed.
+
+### V2: test-helper typing
+
+Removed both caller-chosen `props<T>` assertions from AnalyticsComponents.test.tsx and DailySpendingTable.test.tsx. Shared `elementProps(node, expectedType)` now infers ComponentProps from the expected native/component type and verifies element type identity before returning props. Children extraction checks element validity. Event-independent callback probes explicitly invoke handlers without manufacturing a typed browser event; actual native event behavior is covered by the Chrome suite.
+
+Three new Vitest cases verify inferred component prop types/reference identity, rejection of an unexpected element type, and rejection of non-elements. Existing chart, tooltip, selection, and disclosure assertions remain and pass.
+
+### Final commands and counts
+
+| Command | Result |
 | --- | --- |
-| Explicit chart height, shrinking containers, 1-column layout below 1280px and 2 columns above | Reviewed in source/configuration tests. |
-| Sparse daily axis labels, compact USD ticks, bounded tooltip configuration | Automated configuration/formatter checks passed. |
-| Native buttons, pressed states, explicit selection text, live details, table semantics, focus styles | Source, server-rendered markup, reducer, and handler checks passed. |
-| Reduced motion | All Recharts animation disabled; skeleton uses motion-safe CSS. |
-| Actual 360px / 768px / 1440px layout and absence of clipping/overflow | **Not verified in a live browser.** |
-| Actual tooltip positioning, donut pointer selection, Recharts keyboard behavior | **Not verified in a live browser.** |
-| Actual Tab/Enter/Space operation, focus visibility, screen-reader announcements | **Not verified in a live browser.** |
+| npm.cmd run typecheck | Exit 0, frontend and backend. |
+| npm.cmd run build | Exit 0, frontend and backend. |
+| npm.cmd test | Exit 0: 396 frontend tests in 17 files; 962 backend tests in 17 files; **1,358 total**, zero failures. |
+| npm.cmd run test:browser --workspace frontend | Exit 0: **13 browser cases**, zero failures. |
+| git diff --check | Exit 0; line-ending normalization warning only. |
 
-Browser inventory reported `The browser access host is unavailable`. No live viewport, screenshot, or keyboard check was completed. `overflow-x-hidden` on the existing shell/body is not treated as responsive evidence.
+Vitest is up **3** from the previous 1,355 baseline. The separately executed browser suite adds **13** cases, giving **1,371 passing cases across both commands**. The original pre-T12 baseline was 1,164, so the current Vitest total is up 194. Backend remains 962. No existing tests were removed.
 
-## Remaining review checks and limitations
+### Files changed in this follow-up
 
-1. On localhost at 360, 768, and 1440px, verify chart sizing, all controls, table wrapping, largest monetary labels, and tooltip placement. Check pointer interaction with one and multiple categories.
-2. Use Tab/Enter/Space to switch views, select categories, and clear selection. Verify the same exact details are available without using the SVG or hover, and check screen-reader announcements and reduced-motion mode.
-3. Switch rapidly between months, including A → B → A. Navigate between Dashboard/Budgets/Analytics and verify the month persists. Create/edit/delete an expense through the existing UI and verify analytics after navigation.
-4. Verify loading and GET-failure/retry behavior in the browser. Data is intentionally hidden while refreshing or after failure; Table View and expansion must survive same-month refresh/retry and reset on a month change.
-5. Verify active/inactive button computed colors, underline/Selected feedback, and daily-table expansion/collapse using Tab/Enter/Space. For all-zero months, inspect the complete series through the toggle without duplicate empty-state banners.
+Modified:
 
-Transaction drill-down is an optional enhancement; T13 provides linked category highlighting, exact selected details, and the category table first. URL month persistence is also deferred. No T14, deployment, authentication, external exposure, backend/schema change, dependency change, or development-data modification was performed. No commit or push was made.
+- frontend/package.json: adds test:browser only; dependency declarations and lockfile unchanged.
+- frontend/src/components/AnalyticsComponents.test.tsx: typed element extraction.
+- frontend/src/components/DailySpendingTable.test.tsx: typed element extraction.
+- docs/T13_VERIFICATION.md: current evidence and limitations.
 
-Git status at handoff: **9 modified tracked files and 11 untracked new files**, listed above, with nothing staged. Backend and dependency manifests/lockfile have no diff. The repository was clean at the start of T13; the D1–D3 work began with the initial T13 changes already present. `git diff --check` passed. Browser inventory was checked again for D1–D3 and still reported its host unavailable; all live 360/768/1440px and keyboard/computed-style checks remain NOT VERIFIED.
+Created:
+
+- frontend/src/test/reactElements.ts
+- frontend/src/test/reactElements.test.tsx
+- frontend/src/test/analyticsBrowserHarness.tsx
+- frontend/test/browser/analytics.html
+- frontend/test/browser/analytics.browser.mjs
+
+### Remaining limitations and handoff
+
+V1 and V2 are addressed. The previously missing mounted, keyboard, computed-style, tooltip, and viewport evidence is now available from actual Chrome with isolated synthetic fixtures. This is real browser execution, not server rendering, but it is not a walkthrough against development records. No create/edit/delete operation was performed against the development API. Actual summary/API behavior remains covered by existing automated client/backend tests.
+
+Screen-reader speech/announcements (for example NVDA), other browser engines, the VS Code embedded preview, and a full manual assistive-technology review remain unverified. Accessibility-tree checks and visible focus evidence do not establish screen-reader speech. Pointer coverage selects one donut sector; extremely small sectors have equivalent accessible category buttons. Transaction drill-down and URL month persistence remain optional enhancements.
+
+Git status at this handoff: **4 modified tracked files and 5 untracked new files, nothing staged**. No backend, schema, dependency, development-data, authentication, deployment, or T14 changes. No commit or push was performed. The T13 follow-up is ready for human review; the remaining manual accessibility limitations are stated explicitly rather than treated as completed checks.

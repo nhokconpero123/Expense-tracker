@@ -1,7 +1,8 @@
-import { Children, isValidElement, type ComponentProps, type ReactNode } from 'react';
+import { Children, isValidElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BarChart, ResponsiveContainer } from 'recharts';
+import { elementProps, clickButton } from '../test/reactElements';
 import { AnalyticsTables, DailySpendingTable } from './AnalyticsTables';
 import { DailySpendingChart } from './SpendingCharts';
 import { AnalyticsPresentation } from '../pages/Analytics';
@@ -18,10 +19,6 @@ function findElement(node: ReactNode, type: unknown): ReactNode {
   }
   return undefined;
 }
-function props<T>(node: ReactNode): T {
-  if (!isValidElement(node)) throw new Error('Expected React element');
-  return node.props as T;
-}
 function rowCount(html: string): number {
   const body = /<tbody>([\s\S]*?)<\/tbody>/.exec(html)?.[1] ?? '';
   return (body.match(/<tr\b/g) ?? []).length;
@@ -34,14 +31,14 @@ function setup(initialSummary = createAnalyticsFixture()) {
   const dispatch = (action: AnalyticsViewAction) => { state = analyticsViewReducer(state, action); };
   const presentation = () => AnalyticsPresentation({ summary, state, dispatch });
   const daily = () => {
-    const tables = AnalyticsTables(props<ComponentProps<typeof AnalyticsTables>>(findElement(presentation(), AnalyticsTables)));
-    return DailySpendingTable(props<ComponentProps<typeof DailySpendingTable>>(findElement(tables, DailySpendingTable)));
+    const tables = AnalyticsTables(elementProps(findElement(presentation(), AnalyticsTables), AnalyticsTables));
+    return DailySpendingTable(elementProps(findElement(tables, DailySpendingTable), DailySpendingTable));
   };
   return {
     presentation, dispatch, state: () => state,
     refresh: (next: MonthlySummary) => { summary = next; },
     html: () => renderToStaticMarkup(daily()),
-    toggle: () => { props<{ onClick: () => void }>(findElement(daily(), 'button')).onClick(); },
+    toggle: () => { clickButton(findElement(daily(), 'button')); },
   };
 }
 
@@ -101,12 +98,12 @@ describe('daily table progressive disclosure', () => {
     for (const expanded of [true, false]) {
       if (!expanded) view.toggle();
       view.dispatch({ type: 'view', view: 'chart' });
-      const chartInput = props<ComponentProps<typeof DailySpendingChart>>(findElement(view.presentation(), DailySpendingChart));
+      const chartInput = elementProps(findElement(view.presentation(), DailySpendingChart), DailySpendingChart);
       expect(chartInput.dailyExpenses).toBe(summary.dailyExpenses); expect(chartInput.dailyExpenses).toHaveLength(29);
       expect(chartInput.dailyExpenses.filter(day => day.amountCents === 0)).toHaveLength(28);
       const chart = DailySpendingChart(chartInput);
       const container = findElement(chart, ResponsiveContainer);
-      expect(props<{ data: unknown }>(findElement(container, BarChart)).data).toBe(summary.dailyExpenses);
+      expect(elementProps(findElement(container, BarChart), BarChart).data).toBe(summary.dailyExpenses);
       view.dispatch({ type: 'view', view: 'table' });
       expect(view.state().dailyTableExpanded).toBe(expanded); expect(rowCount(view.html())).toBe(expanded ? 29 : 1);
     }
