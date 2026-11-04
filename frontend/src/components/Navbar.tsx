@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export type AppPage = 'dashboard' | 'transactions';
+export type AppPage = 'dashboard' | 'transactions' | 'budgets';
 
 export interface NavbarProps {
   activePage: AppPage;
@@ -18,7 +18,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', href: '#dashboard', isAvailable: true },
   { id: 'transactions', label: 'Transactions', href: '#transactions', isAvailable: true },
-  { id: 'budgets', label: 'Budgets', href: '#budgets', badge: 'T12', isAvailable: false },
+  { id: 'budgets', label: 'Budgets', href: '#budgets', isAvailable: true },
   { id: 'analytics', label: 'Analytics', href: '#analytics', badge: 'T13', isAvailable: false },
 ];
 

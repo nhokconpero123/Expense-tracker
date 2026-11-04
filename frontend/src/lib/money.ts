@@ -14,16 +14,11 @@ export function formatCentsToUsd(cents: number): string {
     throw new RangeError('Cents amount must be a safe integer');
   }
 
-  // Avoid "-$0.00" by normalizing negative zero
-  const safeCents = cents === 0 ? 0 : cents;
-  const dollars = safeCents / 100;
-
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(dollars);
+  // Keep the fraction exact even for aggregates near Number.MAX_SAFE_INTEGER.
+  const absoluteCents = BigInt(cents < 0 ? -cents : cents);
+  const dollars = new Intl.NumberFormat('en-US').format(absoluteCents / 100n);
+  const fraction = String(absoluteCents % 100n).padStart(2, '0');
+  return `${cents < 0 ? '-' : ''}$${dollars}.${fraction}`;
 }
 
 /**

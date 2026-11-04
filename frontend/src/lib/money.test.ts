@@ -14,6 +14,7 @@ describe('formatCentsToUsd', () => {
     [192450, '$1,924.50'],
     [99999999, '$999,999.99'],
     [100000000, '$1,000,000.00'],
+    [Number.MAX_SAFE_INTEGER, '$90,071,992,547,409.91'],
   ] as const)('formats %i cents as %s', (cents, expected) => {
     expect(formatCentsToUsd(cents)).toBe(expected);
   });
@@ -25,6 +26,7 @@ describe('formatCentsToUsd', () => {
     [-7550, '-$75.50'],
     [-192450, '-$1,924.50'],
     [-100000000, '-$1,000,000.00'],
+    [-Number.MAX_SAFE_INTEGER, '-$90,071,992,547,409.91'],
   ] as const)('formats negative balance %i cents as %s', (cents, expected) => {
     expect(formatCentsToUsd(cents)).toBe(expected);
   });

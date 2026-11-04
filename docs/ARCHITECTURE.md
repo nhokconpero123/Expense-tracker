@@ -1,7 +1,7 @@
 # Architecture
 
 ## 1. Status and components
-T01–T08 implement local foundations, validation/error handling, SQLite schema/catalog initialization, categories, transaction APIs, monthly summary/analytics data, and budget APIs. Frontend dashboard/budget UI/charts remain planned. The standalone server opens and initializes storage before listening and closes it on shutdown. App construction only accepts an injected database and never opens a file itself.
+T01–T08 implement local foundations, validation/error handling, SQLite schema/catalog initialization, categories, transaction APIs, monthly summary/analytics data, and budget APIs. T09–T12 implement the frontend dashboard, transaction management, and monthly budget management; charts remain planned for T13. The standalone server opens and initializes storage before listening and closes it on shutdown. App construction only accepts an injected database and never opens a file itself.
 
 ```text
 Browser: React + TypeScript + Tailwind + Recharts
@@ -16,6 +16,7 @@ Node.js + Express + TypeScript: routes -> validation -> services -> repositories
 - `docs/`: product scope, stories, this architecture, implementation plan, and eventual API/setup notes.
 - Development: Vite proxies `/api` to Express. Both listeners bind exclusively to loopback; no LAN listener, public tunnel, or public unauthenticated hosting. A local production build can serve frontend assets from Express on the same origin. Public deployment belongs only to the separately approved post-MVP phase in section 7.
 - Prefer built-in React state/hooks and fetch for this small MVP. Keep data fetching in dedicated hooks; invalidate dependent views after writes and ignore stale responses when filters/month change.
+- T12 uses `budgetApi.ts` for the existing budget contract and `BudgetStore` behind `useBudgets` for loading, request cancellation/order, editor validation, duplicate-write prevention, and separate write/refresh feedback. The hook subscribes to the existing `MonthContext.summaryRevision`, which transaction create/edit/delete already increment. Render-time month/revision matching hides obsolete snapshots before effects run. Budget writes refresh the current monthly budget endpoint; they do not change transactions or dashboard totals. Native modal dialogs contain keyboard focus and restore the trigger, or the page heading when a refresh removed that trigger. USD formatting splits integer cents using BigInt so large safe-integer spending aggregates retain every cent.
 
 ## 2. Data model
 All IDs are positive integers; API objects use camelCase and SQLite columns use snake_case. Enable foreign keys on every connection.

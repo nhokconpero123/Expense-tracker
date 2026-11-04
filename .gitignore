@@ -17,4 +17,5 @@ data/
 Thumbs.db
 .agents/
 Agents/
-docs/
+docs/*
+!docs/T12_VERIFICATION.md
