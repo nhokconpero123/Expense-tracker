@@ -41,9 +41,9 @@ describe('budget presentation', () => {
     const html = renderToString(<MonthProvider initialMonth="2026-11"><Budgets /></MonthProvider>);
     expect(html).toContain('Loading budgets...'); expect(html).toContain('aria-busy="true"'); expect(html).not.toContain('$0.00');
   });
-  it('activates Budgets navigation while leaving Analytics unavailable', () => {
+  it('activates Budgets navigation with Analytics available', () => {
     const html = renderToString(<Navbar activePage="budgets" onNavigate={() => {}} />);
     expect(html).toMatch(/aria-current="page"[^>]*><span>Budgets/);
-    expect(html).not.toContain('T12'); expect(html).toContain('T13');
+    expect(html).not.toContain('T12'); expect(html).not.toContain('T13');
   });
 });

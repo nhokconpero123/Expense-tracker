@@ -17,6 +17,7 @@ export type SummaryFetcher = (month: string, signal?: AbortSignal) => Promise<Mo
  */
 export class SummaryLoader {
   private activeMonth: string | null = null;
+  private requestId = 0;
   private abortController: AbortController | null = null;
   private state: SummaryState = {
     summary: null,
@@ -46,6 +47,7 @@ export class SummaryLoader {
   }
 
   async load(month: string): Promise<void> {
+    const requestId = ++this.requestId;
     this.activeMonth = month;
     if (this.abortController) {
       this.abortController.abort();
@@ -58,13 +60,13 @@ export class SummaryLoader {
 
     try {
       const data = await this.fetcher(month, controller.signal);
-      // Guard against stale response if month has changed since dispatch
-      if (this.activeMonth !== month) {
+      // Month alone is insufficient for overlapping refreshes or A -> B -> A navigation.
+      if (this.activeMonth !== month || requestId !== this.requestId || controller.signal.aborted) {
         return;
       }
       this.setState({ summary: data, isLoading: false, error: null });
     } catch (err: unknown) {
-      if (this.activeMonth !== month) {
+      if (this.activeMonth !== month || requestId !== this.requestId || controller.signal.aborted) {
         return;
       }
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -82,6 +84,7 @@ export class SummaryLoader {
   }
 
   destroy(): void {
+    this.requestId++;
     if (this.abortController) {
       this.abortController.abort();
     }

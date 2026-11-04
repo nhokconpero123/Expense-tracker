@@ -139,5 +139,41 @@ describe('SummaryLoader', () => {
     loader.destroy();
     expect(capturedSignal?.aborted).toBe(true);
   });
+
+  it.each(['success', 'failure'] as const)('ignores an older same-month refresh %s after a newer request', async outcome => {
+    let resolve!: (value: MonthlySummary) => void;
+    let reject!: (error: Error) => void;
+    const previous = new Promise<MonthlySummary>((res, rej) => { resolve = res; reject = rej; });
+    const latest = createMockSummary('2026-11', 2000);
+    const fetcher = vi.fn().mockReturnValueOnce(previous).mockResolvedValueOnce(latest);
+    const loader = new SummaryLoader(fetcher);
+    const oldRequest = loader.load('2026-11');
+    await loader.load('2026-11');
+    if (outcome === 'success') resolve(createMockSummary('2026-11', 1000));
+    else reject(new Error('Old request failed'));
+    await oldRequest;
+    expect(loader.getState()).toEqual({ summary: latest, isLoading: false, error: null });
+  });
+
+  it('ignores the first A response after an A to B to A month change', async () => {
+    let resolve!: (value: MonthlySummary) => void;
+    const previous = new Promise<MonthlySummary>(res => { resolve = res; });
+    const latest = createMockSummary('2026-11', 3000);
+    const fetcher = vi.fn().mockReturnValueOnce(previous).mockResolvedValueOnce(createMockSummary('2026-12', 2000)).mockResolvedValueOnce(latest);
+    const loader = new SummaryLoader(fetcher);
+    const oldRequest = loader.load('2026-11');
+    await loader.load('2026-12'); await loader.load('2026-11');
+    resolve(createMockSummary('2026-11', 1000)); await oldRequest;
+    expect(loader.getState().summary).toBe(latest);
+  });
+
+  it('does not publish a late response after destruction even when fetch ignores abort', async () => {
+    let resolve!: (value: MonthlySummary) => void;
+    const loader = new SummaryLoader(() => new Promise(res => { resolve = res; }));
+    const pending = loader.load('2026-11');
+    loader.destroy(); const state = loader.getState();
+    resolve(createMockSummary('2026-11')); await pending;
+    expect(loader.getState()).toBe(state);
+  });
 });
 

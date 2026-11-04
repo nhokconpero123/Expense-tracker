@@ -137,6 +137,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus US-07 UI criteria verified.
 
 ## T13 — Build spending charts and readable alternatives
+- Implementation status: implemented with Recharts 3.10.1, existing summary/month/revision integration, exact USD tooltips, category selection, daily/category tables, and automated coverage. See `docs/T13_VERIFICATION.md` for actual command results and remaining live-browser checks. T14 has not started.
 - Depends on: T12.
 - Objective: visualize the summary API with Recharts.
 - Expected files: `frontend/src/pages/Analytics.tsx`, category/daily chart components, data-table alternatives, targeted tests.

@@ -19,3 +19,4 @@ Thumbs.db
 Agents/
 docs/*
 !docs/T12_VERIFICATION.md
+!docs/T13_VERIFICATION.md

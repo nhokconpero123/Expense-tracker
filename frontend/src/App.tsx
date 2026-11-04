@@ -1,12 +1,17 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navbar, type AppPage } from './components/Navbar';
 import { MonthProvider } from './context/MonthContext';
 import { Dashboard } from './pages/Dashboard';
 import { Transactions } from './pages/Transactions';
 import { Budgets } from './pages/Budgets';
 
+const Analytics = lazy(() => import('./pages/Analytics').then(module => ({ default: module.Analytics })));
+
 export default function App() {
   const [activePage, setActivePage] = useState<AppPage>(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#analytics') {
+      return 'analytics';
+    }
     if (typeof window !== 'undefined' && window.location.hash === '#budgets') {
       return 'budgets';
     }
@@ -19,7 +24,9 @@ export default function App() {
   // Sync hash changes with state
   useEffect(() => {
     function handleHashChange() {
-      if (window.location.hash === '#budgets') {
+      if (window.location.hash === '#analytics') {
+        setActivePage('analytics');
+      } else if (window.location.hash === '#budgets') {
         setActivePage('budgets');
       } else if (window.location.hash === '#transactions') {
         setActivePage('transactions');
@@ -47,7 +54,10 @@ export default function App() {
         <Navbar activePage={activePage} onNavigate={handleNavigate} />
 
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          {activePage === 'dashboard' ? <Dashboard /> : activePage === 'budgets' ? <Budgets /> : <Transactions />}
+          <Suspense fallback={<p role="status">Loading analytics...</p>}>
+            {activePage === 'dashboard' ? <Dashboard /> : activePage === 'budgets' ? <Budgets /> :
+              activePage === 'analytics' ? <Analytics /> : <Transactions />}
+          </Suspense>
         </main>
 
         <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-400">
