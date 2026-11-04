@@ -63,8 +63,9 @@ temp/
 Agents/
 
 # Docs: keep only verification files
+docs/*
+!docs/*_VERIFICATION.md
 .vscode/
-docs/
 AGENTS.md
 playwright-report/
 test-results/
