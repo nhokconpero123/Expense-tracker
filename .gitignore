@@ -27,6 +27,7 @@ pnpm-debug.log*
 *.key
 *.p12
 *.pfx
+.nvmrc
 
 # Databases & local data
 *.db
