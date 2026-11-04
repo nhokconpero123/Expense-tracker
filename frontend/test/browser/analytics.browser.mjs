@@ -5,17 +5,48 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
+import { createServer as createHttpServer } from 'node:http';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { installListenerGuard, isLoopback } from './listener-guard.mjs';
 
 // Dependency-free real-Chrome regression tests. Uses a new profile and no backend.
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const artifacts = await mkdtemp(path.join(tmpdir(), 'expense-analytics-browser-'));
 const chromePath = process.env.CHROME_PATH ?? 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe';
-let chrome, socket, server;
+let chrome, socket, server, listener;
+const apiRequests = [];
 let passed = 0;
+const listenerGuard = installListenerGuard();
 try {
-  server = await createServer({ root, server: { host: '127.0.0.1', port: 0, strictPort: false, proxy: {} } });
-  await server.listen();
-  const address = server.httpServer.address();
+  // Do not merge the application config: an empty proxy object retains its API proxy.
+  // Middleware mode lets Node bind port 0 without Vite falling back to the dev port.
+  server = await createServer({
+    root, configFile: false, plugins: [react(), tailwindcss(), {
+      name: 'isolated-browser-api-boundary',
+      configureServer(vite) {
+        vite.middlewares.use((request, response, next) => {
+          const url = new URL(request.url ?? '/', 'http://127.0.0.1');
+          if (url.pathname !== '/api' && !url.pathname.startsWith('/api/')) return next();
+          const referer = request.headers.referer ? new URL(request.headers.referer) : null;
+          apiRequests.push({ method: request.method, path: url.pathname,
+            referer: referer ? referer.origin + referer.pathname : null,
+            userAgent: request.headers['user-agent'] ?? null,
+            probe: request.headers['x-browser-isolation-probe'] === 'true' });
+          response.statusCode = 503;
+          response.setHeader('Content-Type', 'application/json');
+          response.end(JSON.stringify({ error: { code: 'TEST_API_BLOCKED',
+            message: 'Browser fixtures must intercept API requests; no backend is connected.' } }));
+        });
+      },
+    }], server: { host: '127.0.0.1', middlewareMode: true, hmr: false, ws: false },
+  });
+  assert.equal(server.config.server.proxy, undefined);
+  listener = createHttpServer(server.middlewares);
+  await new Promise((resolve, reject) => {
+    listener.once('error', reject); listener.listen(0, '127.0.0.1', resolve);
+  });
+  const address = listener.address();
   assert(address && typeof address === 'object');
   chrome = spawn(chromePath, ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
     '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', `--user-data-dir=${path.join(artifacts, 'profile')}`, 'about:blank'],
@@ -74,6 +105,23 @@ try {
   const rows = () => evaluate("document.querySelector('#daily-spending-rows tbody')?.rows.length ?? 0");
   const ready = () => waitFor("document.body.textContent.includes('Monthly expenses')");
   const check = async (name, test) => { await test(); passed++; console.log(`PASS ${name}`); };
+  await check('test server rejects unmocked API calls without a backend proxy', async () => {
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/summary?month=2026-11`, {
+      headers: { 'x-browser-isolation-probe': 'true' },
+    });
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).error.code, 'TEST_API_BLOCKED');
+    assert.equal(apiRequests.length, 1);
+    assert.equal(apiRequests[0].probe, true);
+  });
+  await listenerGuard.snapshot();
+  if (process.env.BROWSER_ISOLATION_NEGATIVE === '1') {
+    // Deliberately omit the probe marker so the normal final assertion must fail.
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/isolation-negative`);
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).error.code, 'TEST_API_BLOCKED');
+    console.log('Negative isolation request blocked with 503 TEST_API_BLOCKED');
+  }
   await command('Page.enable');
   await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   await command('Page.navigate', { url: `http://127.0.0.1:${address.port}/test/browser/analytics.html` });
@@ -204,10 +252,32 @@ try {
     const toggle = nodes.find(node => node.role?.value === 'button' && node.name?.value === 'Show spending days only');
     assert(toggle?.properties?.some(property => property.name === 'expanded' && property.value?.value === true));
   });
+  const { runTransactionChecks } = await import('./transactions.checks.mjs');
+  await runTransactionChecks({ command, evaluate, waitFor, key, check });
+  const { runBudgetChecks } = await import('./budgets.checks.mjs');
+  await runBudgetChecks({ command, evaluate, waitFor, key, check });
+  await check('runtime listeners owned by Node and Chrome stay on loopback', async () => {
+    for (const address of ['127.0.0.1', '127.1.2.3', '::1', '0:0:0:0:0:0:0:1', '::ffff:127.0.0.1']) assert.equal(isLoopback(address), true);
+    for (const address of ['0.0.0.0', '::', '192.168.1.1', '::ffff:192.168.1.1', 'localhost']) assert.equal(isLoopback(address), false);
+    await listenerGuard.snapshot();
+    const debuggerPort = Number(new URL(endpoint).port);
+    for (const snapshot of listenerGuard.report.snapshots) {
+      assert(snapshot.listeners.some(row => row.pid === process.pid && row.port === address.port));
+      assert(snapshot.listeners.some(row => row.pid === chrome.pid && row.port === debuggerPort));
+    }
+    listenerGuard.assertSafe();
+  });
+  console.log('Listener evidence: ' + JSON.stringify(listenerGuard.report));
+  assert.deepEqual(apiRequests.filter(request => !request.probe), [], 'Unexpected real API requests; see api-requests.json');
   console.log(`Browser tests: ${passed} passed, 0 failed. Chrome: ${(await send('Browser.getVersion')).product}`);
   console.log(`Screenshots and isolated profile: ${artifacts}`);
 } catch (error) {
   console.error(error); console.error(`Browser tests: ${passed} passed, 1 failed. Artifacts: ${artifacts}`); process.exitCode = 1;
 } finally {
-  socket?.close(); chrome?.kill(); await server?.close();
+  await writeFile(path.join(artifacts, 'api-requests.json'), JSON.stringify(apiRequests, null, 2));
+  await writeFile(path.join(artifacts, 'listeners.json'), JSON.stringify(listenerGuard.report, null, 2));
+  socket?.close(); chrome?.kill();
+  await server?.close();
+  if (listener) await new Promise(resolve => listener.close(resolve));
+  await listenerGuard.close();
 }

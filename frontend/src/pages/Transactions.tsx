@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AddTransactionDialog } from '../components/AddTransactionDialog';
 import { DeleteTransactionDialog } from '../components/DeleteTransactionDialog';
 import { TransactionFiltersBar } from '../components/TransactionFiltersBar';
@@ -14,6 +14,10 @@ export function Transactions() {
     error,
     filters,
     categories,
+    isCategoriesLoading,
+    categoriesError,
+    retryCategories,
+    lastSuccessfulRequestId,
     setFilter,
     resetFilters,
     setPage,
@@ -31,11 +35,23 @@ export function Transactions() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Focus restoration reference
-  const activeTriggerRef = useRef<HTMLElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const deletingRef = useRef(false);
 
   // Status feedback banners
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
-  const [warningBanner, setWarningBanner] = useState<string | null>(null);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showSuccess = (message: string | null, expire = false) => {
+    if (successTimer.current !== null) clearTimeout(successTimer.current);
+    successTimer.current = null;
+    setSuccessBanner(message);
+    if (expire) successTimer.current = setTimeout(() => setSuccessBanner(null), 5000);
+  };
+  useEffect(() => () => { if (successTimer.current !== null) clearTimeout(successTimer.current); }, []);
+  const [warningBanner, setWarningBanner] = useState<{ message: string; requestId: number } | null>(null);
+  useEffect(() => {
+    setWarningBanner(current => current && lastSuccessfulRequestId > current.requestId ? null : current);
+  }, [lastSuccessfulRequestId, warningBanner?.requestId]);
 
   const isFiltered =
     filters.type !== INITIAL_FILTERS.type ||
@@ -46,20 +62,16 @@ export function Transactions() {
 
   // Add transaction handler
   const handleAddSubmit = async (payload: CreateTransactionPayload) => {
-    setSuccessBanner(null);
+    showSuccess(null);
     setWarningBanner(null);
 
     const result = await addTransaction(payload);
     if (result.success) {
+      showSuccess('Transaction saved successfully.');
       if (result.refreshFailed) {
-        setWarningBanner(
-          'Transaction was saved successfully, but the list failed to refresh. Please click refresh below.',
-        );
+        setWarningBanner({ message: 'Transaction was saved successfully, but the list failed to refresh. Please click refresh below.', requestId: result.refreshRequestId ?? 0 });
       } else {
-        setSuccessBanner('Transaction recorded successfully.');
-        setTimeout(() => {
-          setSuccessBanner(null);
-        }, 5000);
+        showSuccess('Transaction recorded successfully.', true);
       }
     }
     return result;
@@ -71,20 +83,16 @@ export function Transactions() {
       return { success: false, error: 'No transaction selected for editing' };
     }
 
-    setSuccessBanner(null);
+    showSuccess(null);
     setWarningBanner(null);
 
     const result = await editTransaction(editingTransaction.id, payload);
     if (result.success) {
+      showSuccess('Transaction saved successfully.');
       if (result.refreshFailed) {
-        setWarningBanner(
-          'Transaction was updated successfully, but the list failed to refresh. Please click refresh below.',
-        );
+        setWarningBanner({ message: 'Transaction was updated successfully, but the list failed to refresh. Please click refresh below.', requestId: result.refreshRequestId ?? 0 });
       } else {
-        setSuccessBanner('Transaction updated successfully.');
-        setTimeout(() => {
-          setSuccessBanner(null);
-        }, 5000);
+        showSuccess('Transaction updated successfully.', true);
       }
     }
     return result;
@@ -92,34 +100,27 @@ export function Transactions() {
 
   // Delete transaction handler
   const handleDeleteConfirm = async () => {
-    if (!deletingTransaction) return;
+    if (!deletingTransaction || deletingRef.current) return;
+    deletingRef.current = true;
 
     setIsDeleting(true);
     setDeleteError(null);
-    setSuccessBanner(null);
+    showSuccess(null);
     setWarningBanner(null);
 
     try {
       const result = await removeTransaction(deletingTransaction.id);
       if (result.success) {
-        const trigger = activeTriggerRef.current;
+        showSuccess('Transaction deleted successfully.');
         setDeletingTransaction(null);
         setIsDeleting(false);
 
         if (result.refreshFailed) {
-          setWarningBanner(
-            'Transaction was deleted successfully, but the list failed to refresh. Please click refresh below.',
-          );
+          setWarningBanner({ message: 'Transaction was deleted successfully, but the list failed to refresh. Please click refresh below.', requestId: result.refreshRequestId ?? 0 });
         } else {
-          setSuccessBanner('Transaction deleted successfully.');
-          setTimeout(() => {
-            setSuccessBanner(null);
-          }, 5000);
+          showSuccess('Transaction deleted successfully.', true);
         }
 
-        setTimeout(() => {
-          trigger?.focus();
-        }, 50);
       } else {
         setDeleteError(result.error || 'Failed to delete transaction. Please try again.');
         setIsDeleting(false);
@@ -127,64 +128,24 @@ export function Transactions() {
     } catch (err: unknown) {
       setDeleteError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setIsDeleting(false);
+    } finally {
+      deletingRef.current = false;
     }
   };
 
-  // Open Edit Dialog
-  const handleOpenEdit = (tx: Transaction, triggerElement: HTMLElement | null) => {
-    activeTriggerRef.current = triggerElement;
-    setEditingTransaction(tx);
-  };
-
-  // Close Edit Dialog
-  const handleCloseEdit = () => {
-    const trigger = activeTriggerRef.current;
-    setEditingTransaction(null);
-    setTimeout(() => {
-      trigger?.focus();
-    }, 50);
-  };
-
-  // Open Delete Dialog
-  const handleOpenDelete = (tx: Transaction, triggerElement: HTMLElement | null) => {
-    activeTriggerRef.current = triggerElement;
-    setDeleteError(null);
-    setDeletingTransaction(tx);
-  };
-
-  // Close Delete Dialog
-  const handleCloseDelete = () => {
-    const trigger = activeTriggerRef.current;
-    setDeletingTransaction(null);
-    setDeleteError(null);
-    setTimeout(() => {
-      trigger?.focus();
-    }, 50);
-  };
-
-  // Open Add Dialog
-  const handleOpenAdd = (triggerElement?: HTMLElement | null) => {
-    if (triggerElement) {
-      activeTriggerRef.current = triggerElement;
-    }
-    setIsAddModalOpen(true);
-  };
-
-  // Close Add Dialog
-  const handleCloseAdd = () => {
-    const trigger = activeTriggerRef.current;
-    setIsAddModalOpen(false);
-    setTimeout(() => {
-      trigger?.focus();
-    }, 50);
-  };
+  const handleOpenEdit = (tx: Transaction) => setEditingTransaction(tx);
+  const handleCloseEdit = () => setEditingTransaction(null);
+  const handleOpenDelete = (tx: Transaction) => { setDeleteError(null); setDeletingTransaction(tx); };
+  const handleCloseDelete = () => { if (!deletingRef.current) { setDeletingTransaction(null); setDeleteError(null); } };
+  const handleOpenAdd = () => setIsAddModalOpen(true);
+  const handleCloseAdd = () => setIsAddModalOpen(false);
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">
+          <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-bold tracking-tight text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 sm:text-3xl">
             Transactions
           </h1>
           <p className="mt-1 text-sm text-slate-400">
@@ -219,7 +180,7 @@ export function Transactions() {
           {/* Add Transaction Button */}
           <button
             type="button"
-            onClick={(e) => handleOpenAdd(e.currentTarget)}
+            onClick={handleOpenAdd}
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -254,7 +215,7 @@ export function Transactions() {
           </div>
           <button
             type="button"
-            onClick={() => setSuccessBanner(null)}
+            onClick={() => showSuccess(null)}
             className="text-emerald-400 hover:text-emerald-200"
             aria-label="Dismiss success message"
           >
@@ -287,7 +248,7 @@ export function Transactions() {
               <line x1="12" y1="9" x2="12" y2="13" />
               <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
-            <span>{warningBanner}</span>
+            <span>{warningBanner.message}</span>
           </div>
           <button
             type="button"
@@ -336,6 +297,13 @@ export function Transactions() {
         </div>
       )}
 
+      {isCategoriesLoading && <p role="status">Loading categories...</p>}
+      {categoriesError && <section role="alert" aria-label="Category loading error" className="rounded-xl border border-rose-800 p-4 text-sm text-rose-200">
+        <p>Failed to load categories: {categoriesError}</p>
+        <button type="button" onClick={() => { void retryCategories(); }} disabled={isCategoriesLoading}
+          className="mt-2 rounded-lg border border-slate-600 px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">Retry categories</button>
+      </section>}
+
       {/* Filters Bar */}
       <TransactionFiltersBar
         filters={filters}
@@ -346,7 +314,7 @@ export function Transactions() {
       />
 
       {/* Transactions Table & Pagination */}
-      <TransactionTable
+      {!error && <TransactionTable
         transactions={transactions}
         meta={meta}
         isLoading={isLoading}
@@ -356,13 +324,17 @@ export function Transactions() {
         onOpenAddModal={() => handleOpenAdd()}
         onEditTransaction={handleOpenEdit}
         onDeleteTransaction={handleOpenDelete}
-      />
+      />}
 
       {/* Add Transaction Modal */}
       <AddTransactionDialog
         isOpen={isAddModalOpen}
         onClose={handleCloseAdd}
         categories={categories}
+        isCategoriesLoading={isCategoriesLoading}
+        categoriesError={categoriesError}
+        retryCategories={retryCategories}
+        fallbackFocus={headingRef}
         onSubmit={handleAddSubmit}
         mode="create"
       />
@@ -372,6 +344,10 @@ export function Transactions() {
         isOpen={Boolean(editingTransaction)}
         onClose={handleCloseEdit}
         categories={categories}
+        isCategoriesLoading={isCategoriesLoading}
+        categoriesError={categoriesError}
+        retryCategories={retryCategories}
+        fallbackFocus={headingRef}
         onSubmit={handleEditSubmit}
         mode="edit"
         initialTransaction={editingTransaction}
@@ -385,6 +361,7 @@ export function Transactions() {
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleting}
         deleteError={deleteError}
+        fallbackFocus={headingRef}
       />
     </div>
   );

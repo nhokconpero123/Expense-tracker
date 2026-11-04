@@ -17,7 +17,8 @@ export function MonthSelector() {
         <button
           type="button"
           onClick={goToPreviousMonth}
-          className="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-md text-slate-300 hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          disabled={month === '1900-01'}
+          className="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-md text-slate-300 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           aria-label="Previous month"
         >
           <svg
@@ -46,7 +47,8 @@ export function MonthSelector() {
         <button
           type="button"
           onClick={goToNextMonth}
-          className="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-md text-slate-300 hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          disabled={month === '9999-12'}
+          className="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-md text-slate-300 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-700 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           aria-label="Next month"
         >
           <svg

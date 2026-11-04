@@ -1,7 +1,7 @@
 # Implementation Plan
 
 ## Working agreement
-This plan describes future work only. Review the four planning documents before implementation. Follow AGENTS.md, read PRD.md before each feature, complete one task at a time, explain the next change before editing code, and keep diffs reviewable. No commit, push, deployment, or application implementation is authorized by this documentation task. T01–T14 cover the single-user localhost-only MVP; P01–P03 are a separate conditional post-MVP phase requiring approval.
+This plan records the original task criteria and current implementation/release status; completed criteria are not automatically evidence that every release check has passed. Review the four planning documents before implementation. Follow AGENTS.md, read PRD.md before each feature, complete one task at a time, explain the next change before editing code, and keep diffs reviewable. This plan does not authorize commits, pushes, deployment, or additional implementation; follow the current approved task scope. T01–T14 cover the single-user localhost-only MVP; P01–P03 are a separate conditional post-MVP phase requiring approval.
 
 Paths below are proposed. Each implementation task requires its acceptance criteria, applicable tests, documentation updates, no known critical defects, and a reviewable diff to meet its definition of done (DoD). Record exact commands/results; never claim unrun tests passed. Install only required dependencies during an authorized implementation task. Never delete existing user data without approval.
 
@@ -137,7 +137,7 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus US-07 UI criteria verified.
 
 ## T13 — Build spending charts and readable alternatives
-- Implementation status: implemented with Recharts 3.10.1, existing summary/month/revision integration, exact USD tooltips, category selection, daily/category tables, and automated coverage. See `docs/T13_VERIFICATION.md` for actual command results and remaining live-browser checks. T14 has not started.
+- Implementation status: implemented with Recharts 3.10.1, existing summary/month/revision integration, exact USD tooltips, category selection, daily/category tables, and automated coverage. See `docs/T13_VERIFICATION.md` for passing isolated Chrome checks and remaining manual limitations. T14a audit, T14b documentation, T14c fixes and T14d rehearsal are complete; see the T14D_VERIFICATION.md post-fix addendum for the current release blocker.
 - Depends on: T12.
 - Objective: visualize the summary API with Recharts.
 - Expected files: `frontend/src/pages/Analytics.tsx`, category/daily chart components, data-table alternatives, targeted tests.
@@ -146,6 +146,8 @@ Paths below are proposed. Each implementation task requires its acceptance crite
 - DoD: common DoD plus US-08 criteria verified without duplicating financial calculations in the UI.
 
 ## T14 — Verify release readiness and document the demo
+- Current status: T14a audit and T14b documentation completed; T14c fixed F1-F6 with production browser regressions. T14d recorded actual-backend workflows, restart persistence, responsive checks and the 10,000-row benchmark. The subsequent Budget Dialog focus fix passes nine additional Chrome cases.
+- Release packaging: 399 frontend and 962 backend Vitest cases pass. Chrome passes 44 checks: 42 interaction cases plus API rejection and actual runtime listener regression. The Vite WebSocket transport is disabled in test-only configuration; three unchanged normal runs, an expected negative failure, and a clean follow-up pass are recorded in the latest T14D_VERIFICATION.md addendum. READY for human-reviewed local-only release; no commit or publication has occurred. Historical summary proxy callers remain unknown, but are not a blocker solely because attribution is unavailable. Full screen-reader speech, VS Code preview, fresh-install reproducibility and backup restoration remain unverified. Native-child listener inspection is Windows-specific and uses snapshots; Node listener observation is continuous.
 - Depends on: T13.
 - Objective: produce a reproducible portfolio-ready local MVP.
 - Expected files: `README.md`, `docs/VERIFICATION.md`, `docs/API.md`, optional explicitly invoked demo-data generator and benchmark script, fixes limited to findings.

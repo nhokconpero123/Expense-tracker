@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
 import type { Category, CreateTransactionPayload, Transaction, TransactionType } from '../lib/api';
 import { getTodayLocalDate, isValidDate } from '../lib/date';
+import { useTransactionDialog } from '../hooks/useTransactionDialog';
 import { parseUsdToCents } from '../lib/money';
 
 export interface AddTransactionDialogProps {
@@ -12,6 +13,10 @@ export interface AddTransactionDialogProps {
   ) => Promise<{ success: boolean; refreshFailed?: boolean; error?: string }>;
   mode?: 'create' | 'edit';
   initialTransaction?: Transaction | null;
+  fallbackFocus?: RefObject<HTMLHeadingElement | null>;
+  isCategoriesLoading?: boolean;
+  categoriesError?: string | null;
+  retryCategories?: () => Promise<void>;
 }
 
 export function AddTransactionDialog({
@@ -21,6 +26,10 @@ export function AddTransactionDialog({
   onSubmit,
   mode = 'create',
   initialTransaction = null,
+  fallbackFocus,
+  isCategoriesLoading = false,
+  categoriesError = null,
+  retryCategories,
 }: AddTransactionDialogProps) {
   const isEditMode = mode === 'edit' && initialTransaction !== null;
 
@@ -47,6 +56,8 @@ export function AddTransactionDialog({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const amountInputRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
+  const dialog = useTransactionDialog(isOpen, isSubmitting, onClose, amountInputRef, fallbackFocus);
 
   // Available categories matching the selected type
   const filteredCategories = categories.filter((category) => category.type === type);
@@ -71,24 +82,9 @@ export function AddTransactionDialog({
         setNote('');
       }
 
-      setTimeout(() => {
-        amountInputRef.current?.focus();
-      }, 50);
+
     }
   }, [isOpen, isEditMode, initialTransaction]);
-
-  // Close on Escape key
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && isOpen && !isSubmitting) {
-        onClose();
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, isSubmitting, onClose]);
 
   // When type changes, clear category selection if it belongs to a different type
   const handleTypeChange = (newType: TransactionType) => {
@@ -149,7 +145,7 @@ export function AddTransactionDialog({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (isSubmitting) return;
+    if (submittingRef.current || isCategoriesLoading || categoriesError) return;
 
     setSubmitError(null);
     const { valid, cents } = validate();
@@ -157,6 +153,7 @@ export function AddTransactionDialog({
       return;
     }
 
+    submittingRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -197,6 +194,7 @@ export function AddTransactionDialog({
     } catch (err: unknown) {
       setSubmitError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -208,21 +206,9 @@ export function AddTransactionDialog({
   const submittingLabel = isEditMode ? 'Saving Changes...' : 'Saving...';
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="dialog-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-    >
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
-        aria-hidden="true"
-        onClick={() => {
-          if (!isSubmitting) onClose();
-        }}
-      />
-
+    <dialog {...dialog}
+      role="dialog" aria-modal="true" aria-labelledby="dialog-title"
+      className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-2xl bg-slate-900 p-0 text-slate-100 backdrop:bg-slate-950/80">
       {/* Modal Dialog Content */}
       <div className="relative w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl sm:p-8">
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
@@ -259,7 +245,14 @@ export function AddTransactionDialog({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} noValidate className="mt-5 space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="mt-5">
+          <fieldset disabled={isSubmitting} className="space-y-4">
+          {isCategoriesLoading && <p role="status">Loading categories...</p>}
+          {categoriesError && <div role="alert">
+            <p>Failed to load categories: {categoriesError}</p>
+            <button type="button" onClick={() => { void retryCategories?.(); }} disabled={isCategoriesLoading}
+              className="mt-2 rounded-lg border border-slate-600 px-3 py-2 focus-visible:ring-2 focus-visible:ring-emerald-400">Retry categories</button>
+          </div>}
           {/* Transaction Type Segmented Toggle */}
           <div>
             <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">
@@ -446,7 +439,7 @@ export function AddTransactionDialog({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isCategoriesLoading || !!categoriesError}
               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? (
@@ -469,8 +462,9 @@ export function AddTransactionDialog({
               )}
             </button>
           </div>
+          </fieldset>
         </form>
       </div>
-    </div>
+    </dialog>
   );
 }

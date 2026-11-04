@@ -9,6 +9,7 @@ vi.mock('react', async importOriginal => ({
   ...await importOriginal<typeof import('react')>(),
   useRef: () => ({ current: null }),
   useEffect: () => {},
+  useLayoutEffect: () => {},
 }));
 
 const configured: BudgetItem = { categoryId: 4, categoryName: 'Food', month: '2026-11', amountCents: 10000,

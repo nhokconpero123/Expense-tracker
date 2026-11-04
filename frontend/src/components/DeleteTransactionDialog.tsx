@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useRef, type RefObject } from 'react';
+import { useTransactionDialog } from '../hooks/useTransactionDialog';
 import type { Transaction } from '../lib/api';
 import { formatDateDisplay } from '../lib/date';
 import { formatCentsToUsd } from '../lib/money';
@@ -10,6 +11,7 @@ export interface DeleteTransactionDialogProps {
   onConfirm: () => Promise<void>;
   isDeleting: boolean;
   deleteError: string | null;
+  fallbackFocus?: RefObject<HTMLHeadingElement | null>;
 }
 
 export function DeleteTransactionDialog({
@@ -19,30 +21,11 @@ export function DeleteTransactionDialog({
   onConfirm,
   isDeleting,
   deleteError,
+  fallbackFocus,
 }: DeleteTransactionDialogProps) {
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Focus cancel button by default when dialog opens
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => {
-        cancelButtonRef.current?.focus();
-      }, 50);
-    }
-  }, [isOpen]);
-
-  // Handle escape key
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && isOpen && !isDeleting) {
-        onClose();
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, isDeleting, onClose]);
+  const dialog = useTransactionDialog(isOpen && transaction !== null, isDeleting, onClose, cancelButtonRef, fallbackFocus);
 
   if (!isOpen || !transaction) {
     return null;
@@ -52,24 +35,9 @@ export function DeleteTransactionDialog({
   const formattedAmount = formatCentsToUsd(transaction.amountCents);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="delete-dialog-title"
-      aria-describedby="delete-dialog-description"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-    >
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
-        aria-hidden="true"
-        onClick={() => {
-          if (!isDeleting) {
-            onClose();
-          }
-        }}
-      />
-
+    <dialog {...dialog}
+      role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title" aria-describedby="delete-dialog-description"
+      className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-2xl bg-slate-900 p-0 text-slate-100 backdrop:bg-slate-950/80">
       {/* Modal Dialog Content */}
       <div className="relative w-full max-w-md rounded-2xl border border-rose-500/30 bg-slate-900 p-6 shadow-2xl shadow-rose-950/20">
         <div className="flex items-start gap-4">
@@ -174,7 +142,7 @@ export function DeleteTransactionDialog({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 

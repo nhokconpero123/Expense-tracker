@@ -34,11 +34,11 @@ export function MonthProvider({ children, initialMonth }: MonthProviderProps) {
   };
 
   const goToPreviousMonth = () => {
-    setMonthState((current) => shiftMonth(current, -1));
+    setMonthState((current) => current === '1900-01' ? current : shiftMonth(current, -1));
   };
 
   const goToNextMonth = () => {
-    setMonthState((current) => shiftMonth(current, 1));
+    setMonthState((current) => current === '9999-12' ? current : shiftMonth(current, 1));
   };
 
   const goToCurrentMonth = () => {

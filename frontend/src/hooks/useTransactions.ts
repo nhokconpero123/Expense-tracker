@@ -37,6 +37,17 @@ export const INITIAL_META: TransactionListMeta = {
   totalPages: 0,
 };
 
+export interface TransactionRefreshResult {
+  requestId: number;
+  status: 'success' | 'failed' | 'obsolete';
+}
+export interface TransactionMutationResult {
+  success: boolean;
+  refreshFailed?: boolean;
+  refreshRequestId?: number;
+  error?: string;
+}
+
 export interface UseTransactionsResult {
   transactions: Transaction[];
   meta: TransactionListMeta;
@@ -45,29 +56,34 @@ export interface UseTransactionsResult {
   filters: TransactionFilterValues;
   categories: Category[];
   isCategoriesLoading: boolean;
+  categoriesError: string | null;
+  retryCategories: () => Promise<void>;
+  lastSuccessfulRequestId: number;
   setFilter: <K extends keyof TransactionFilterValues>(
     key: K,
     value: TransactionFilterValues[K],
   ) => void;
   resetFilters: () => void;
   setPage: (page: number) => void;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<TransactionRefreshResult>;
   addTransaction: (
     payload: CreateTransactionPayload,
-  ) => Promise<{ success: boolean; refreshFailed?: boolean; error?: string }>;
+  ) => Promise<TransactionMutationResult>;
   editTransaction: (
     id: number,
     payload: CreateTransactionPayload,
-  ) => Promise<{ success: boolean; refreshFailed?: boolean; error?: string }>;
+  ) => Promise<TransactionMutationResult>;
   removeTransaction: (
     id: number,
-  ) => Promise<{ success: boolean; refreshFailed?: boolean; error?: string }>;
+  ) => Promise<TransactionMutationResult>;
 }
 
 export function useTransactions(): UseTransactionsResult {
   const { notifyTransactionCreated } = useMonth();
 
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const categoriesControllerRef = useRef<AbortController | null>(null);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState<boolean>(true);
 
   const [filters, setFilters] = useState<TransactionFilterValues>(INITIAL_FILTERS);
@@ -79,33 +95,48 @@ export function useTransactions(): UseTransactionsResult {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const queryIdentity = JSON.stringify([filters, page]);
+  const [loadedIdentity, setLoadedIdentity] = useState('');
+  const [lastSuccessfulRequestId, setLastSuccessfulRequestId] = useState(0);
+  const mountedRef = useRef(false);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+
   const activeRequestIdRef = useRef<number>(0);
+  const requestedIdentity = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-
-  // Load category catalog on mount
-  useEffect(() => {
-    const controller = new AbortController();
-    setIsCategoriesLoading(true);
-
-    fetchCategories(undefined, controller.signal)
-      .then((data) => {
-        setCategories(data);
-        setIsCategoriesLoading(false);
-      })
-      .catch((err: unknown) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-        setIsCategoriesLoading(false);
-      });
-
-    return () => {
-      controller.abort();
-    };
+  useEffect(() => () => {
+    abortControllerRef.current?.abort();
+    activeRequestIdRef.current++;
   }, []);
+
+  const retryCategories = useCallback(async () => {
+    if (categoriesControllerRef.current && !categoriesControllerRef.current.signal.aborted) return;
+    const controller = new AbortController();
+    categoriesControllerRef.current = controller;
+    setIsCategoriesLoading(true);
+    setCategoriesError(null);
+    try {
+      const data = await fetchCategories(undefined, controller.signal);
+      if (!controller.signal.aborted) setCategories(data);
+    } catch (error) {
+      if (!controller.signal.aborted) setCategoriesError(error instanceof Error ? error.message : 'Failed to load categories');
+    } finally {
+      if (categoriesControllerRef.current === controller) {
+        categoriesControllerRef.current = null;
+        if (!controller.signal.aborted) setIsCategoriesLoading(false);
+      }
+    }
+  }, []);
+  useEffect(() => {
+    void retryCategories();
+    return () => { categoriesControllerRef.current?.abort(); };
+  }, [retryCategories]);
 
   // Fetch transactions based on filters and page
   const loadTransactions = useCallback(
-    async (targetPage = page): Promise<void> => {
+    async (targetPage = page): Promise<TransactionRefreshResult> => {
       const requestId = ++activeRequestIdRef.current;
+      if (!mountedRef.current) return { requestId, status: 'obsolete' };
 
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -115,6 +146,10 @@ export function useTransactions(): UseTransactionsResult {
 
       setIsLoading(true);
       setError(null);
+      requestedIdentity.current = JSON.stringify([filters, targetPage]);
+      setLoadedIdentity(requestedIdentity.current);
+      setTransactions([]);
+      setMeta({ ...INITIAL_META, page: targetPage });
 
       const queryFilters: TransactionFilters = {
         type: filters.type,
@@ -138,13 +173,16 @@ export function useTransactions(): UseTransactionsResult {
       try {
         const response = await fetchTransactions(queryFilters, controller.signal);
 
-        if (activeRequestIdRef.current === requestId) {
+        if (activeRequestIdRef.current === requestId && !controller.signal.aborted) {
+          setLastSuccessfulRequestId(requestId);
           setTransactions(response.data);
           setMeta(response.meta);
           setError(null);
+          return { requestId, status: 'success' };
         }
+        return { requestId, status: 'obsolete' };
       } catch (err: unknown) {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (controller.signal.aborted || activeRequestIdRef.current !== requestId) return { requestId, status: 'obsolete' };
         if (activeRequestIdRef.current === requestId) {
           const message =
             err instanceof ApiClientError
@@ -154,9 +192,9 @@ export function useTransactions(): UseTransactionsResult {
                 : 'Failed to load transactions';
           setError(message);
         }
-        throw err;
+        return { requestId, status: 'failed' };
       } finally {
-        if (activeRequestIdRef.current === requestId) {
+        if (activeRequestIdRef.current === requestId && !controller.signal.aborted) {
           setIsLoading(false);
         }
       }
@@ -165,13 +203,10 @@ export function useTransactions(): UseTransactionsResult {
   );
 
   useEffect(() => {
-    void loadTransactions().catch(() => {});
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [loadTransactions]);
+    if (requestedIdentity.current !== queryIdentity || abortControllerRef.current?.signal.aborted) void loadTransactions();
+    const controller = abortControllerRef.current;
+    return () => { controller?.abort(); };
+  }, [loadTransactions, queryIdentity]);
 
   const setFilter = useCallback(
     <K extends keyof TransactionFilterValues>(key: K, value: TransactionFilterValues[K]) => {
@@ -192,31 +227,20 @@ export function useTransactions(): UseTransactionsResult {
     setPageState(newPage);
   }, []);
 
-  const refresh = useCallback(async () => {
-    try {
-      await loadTransactions();
-    } catch {
-      // Handled in loadTransactions
-    }
-  }, [loadTransactions]);
+  const refresh = useCallback(() => loadTransactions(), [loadTransactions]);
 
   const addTransaction = useCallback(
     async (
       payload: CreateTransactionPayload,
-    ): Promise<{ success: boolean; refreshFailed?: boolean; error?: string }> => {
+    ): Promise<TransactionMutationResult> => {
       try {
         await createTransaction(payload);
         // Refresh dashboard summary data
         notifyTransactionCreated();
 
         // Refresh transactions list
-        try {
-          await loadTransactions();
-          return { success: true };
-        } catch {
-          // Requirement 17 & 22: Refresh failure is not misreported as save failure
-          return { success: true, refreshFailed: true };
-        }
+        const refreshed = await loadTransactions();
+        return { success: true, refreshFailed: refreshed.status === 'failed', refreshRequestId: refreshed.requestId };
       } catch (err: unknown) {
         const message =
           err instanceof ApiClientError
@@ -234,19 +258,15 @@ export function useTransactions(): UseTransactionsResult {
     async (
       id: number,
       payload: CreateTransactionPayload,
-    ): Promise<{ success: boolean; refreshFailed?: boolean; error?: string }> => {
+    ): Promise<TransactionMutationResult> => {
       try {
         await updateTransaction(id, payload);
         // Refresh dashboard summary data
         notifyTransactionCreated();
 
         // Refresh transactions list
-        try {
-          await loadTransactions(page);
-          return { success: true };
-        } catch {
-          return { success: true, refreshFailed: true };
-        }
+        const refreshed = await loadTransactions(page);
+        return { success: true, refreshFailed: refreshed.status === 'failed', refreshRequestId: refreshed.requestId };
       } catch (err: unknown) {
         const message =
           err instanceof ApiClientError
@@ -263,7 +283,7 @@ export function useTransactions(): UseTransactionsResult {
   const removeTransaction = useCallback(
     async (
       id: number,
-    ): Promise<{ success: boolean; refreshFailed?: boolean; error?: string }> => {
+    ): Promise<TransactionMutationResult> => {
       try {
         await deleteTransaction(id);
         // Refresh dashboard summary data
@@ -276,12 +296,8 @@ export function useTransactions(): UseTransactionsResult {
         }
 
         // Refresh transactions list
-        try {
-          await loadTransactions(targetPage);
-          return { success: true };
-        } catch {
-          return { success: true, refreshFailed: true };
-        }
+        const refreshed = await loadTransactions(targetPage);
+        return { success: true, refreshFailed: refreshed.status === 'failed', refreshRequestId: refreshed.requestId };
       } catch (err: unknown) {
         const message =
           err instanceof ApiClientError
@@ -296,13 +312,16 @@ export function useTransactions(): UseTransactionsResult {
   );
 
   return {
-    transactions,
-    meta,
-    isLoading,
-    error,
+    transactions: loadedIdentity === queryIdentity ? transactions : [],
+    meta: loadedIdentity === queryIdentity ? meta : { ...INITIAL_META, page },
+    isLoading: loadedIdentity !== queryIdentity || isLoading,
+    error: loadedIdentity === queryIdentity ? error : null,
     filters,
     categories,
     isCategoriesLoading,
+    categoriesError,
+    retryCategories,
+    lastSuccessfulRequestId,
     setFilter,
     resetFilters,
     setPage,

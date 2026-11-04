@@ -1,6 +1,6 @@
 # Verification Record
 
-Entries are historical records of each task's verification. The final T08 entry records the current monthly budget API work and test counts.
+Entries are historical records of each task's verification. The latest entry is [Prompt 44 listener resolution](#prompt-44---websocket-listener-resolution-and-acceptance---november-4-2026). T12 and T13 have additional task-specific verification records in this directory; earlier counts below describe their original task snapshots.
 
 ## T01
 
@@ -471,3 +471,141 @@ Write-Output "TEST_EXIT=$LASTEXITCODE"
 Coverage includes every expense category, null semantics, all statuses, exact limits and cents, percentage rounding ties, month/category/type isolation, leap and final-year boundaries, repeated upsert uniqueness and preserved identity, successful/repeated deletion, transaction preservation, malformed inputs and parameterized paths, foreign keys, trigger/readback failures with rollback, unsafe spending/SUM overflow, unavailable storage, mutation-driven spending, private-file close/reopen persistence, and read-only GET under query_only. The snapshot test holds a SELECT iterator open while another WAL connection atomically replaces a limit and adds spending: the first response retains the complete old snapshot, and the next response reflects both committed changes.
 
 Tests use memory or newly registered private temporary files only; all connections close before private-file disposal. No development database was opened, deleted, reset or modified. No browser/live proxy review or performance benchmark was performed. No known blocking T08 issues. Stop for review before T09; no commit/push performed.
+
+
+## T14b documentation preparation
+
+Date: November 4, 2026 (America/Chicago). Starting HEAD: `ad9899d`. Scope: documentation only; no source, tests, package scripts, dependencies, database schema, or configuration changes.
+
+### Prerequisite and release status
+
+The T14a repository/security audit was completed and reviewed in the task conversation. It reported **0 critical, 0 high, 8 medium findings and 1 low optional hardening item**, with local-only release **NOT READY**. No unresolved critical/high blocker required stopping this documentation task. This entry preserves its relevant conclusions; it is not a new full audit or a claim that the application findings were fixed.
+
+| T14a item | Carry-forward after documentation preparation |
+| --- | --- |
+| F1: transaction modal focus containment/restoration | Open. See frontend/src/components/AddTransactionDialog.tsx, DeleteTransactionDialog.tsx, and pages/Transactions.tsx. |
+| F2: category-fetch failure recovery | Open. The transaction hook does not expose a category-specific error/Retry. |
+| F3: old transaction rows after failed filter/page refresh | Open. Prior rows can remain actionable under changed controls. |
+| F4: stale transaction refresh warning | Open. Successful retry does not automatically resolve the warning. |
+| F5: test-local coordinator coverage | Open. TransactionCoordinator is defined in its test file rather than testing the mounted production hook. |
+| F6: month navigation at year limits | Open. Previous from 1900-01 and next from 9999-12 need guarded controls/state. |
+| F7: stale release documentation | Corrected in this task: current features, API-only Express topology, preview proxy, test coverage scope, and current task status. |
+| F8: release acceptance evidence | Open. Full disposable-database workflow, dialog/browser acceptance, restart rehearsal, demo captures, and benchmark measurements remain. |
+| S1: explicit local Host/Origin policy | Optional hardening remains open; no exploit was reproduced in T14a. Public deployment remains prohibited. |
+
+### Documentation changes
+
+- Replaced the historical root README with current features, stack, architecture/engineering decisions, supported runtime versions, PowerShell setup, database lifecycle/backups, development/build/test commands, preview topology, environment values, actual API/reporting behavior, test strategy, security boundary, known issues, screenshot placeholders, troubleshooting, and documentation links.
+- Corrected README's claims that dashboard/budget UI/charts were unimplemented, Recharts was future work, and preview had no API proxy.
+- Updated API documentation's title and frontend/proxy status without changing endpoint contracts or examples.
+- Corrected architecture claims about Express serving built assets, blanket T13 browser-pending status, historical-only testing descriptions, and raw diagnostic logging.
+- Updated the implementation plan to reflect the current approved T14b documentation scope. Its earlier audit proposal to call code fixes T14b is superseded; fixes and release rehearsals remain separate future work.
+- Preserved historical test/task records rather than rewriting them as new verification. Updated this record's introduction to point to the current entry.
+
+### Executed verification
+
+All required commands ran from the repository root. Runtime: Node **24.19.0**, npm **11.17.0**; supported engine ranges remain Node >=24.19.0 <25 and npm >=11 <12.
+
+| Command | Exit | Actual result |
+| --- | --- | --- |
+| npm.cmd run typecheck | 0 | Frontend and backend passed. |
+| npm.cmd run build | 0 | Frontend Vite build and backend TypeScript compilation passed. |
+| npm.cmd test | 0 | Frontend 396 passed in 17 files; backend 962 passed in 17 files; **1,358 total**, 0 failed in 34 files. |
+| git diff --check | 0 | No whitespace errors. |
+
+Counts are unchanged from the T14a execution and up 3 frontend cases from the earlier 1,355-test T13 snapshot. No tests were added, removed, or edited by this documentation task. The separate 13-case Analytics Chrome suite passed during T14a, but was **not rerun for T14b** and is not included in the 1,358 total.
+
+Additional read-only checks matched documented npm script commands to actual workspace manifests and checked local Markdown links in the changed documents. Resolving the existing Vite config without opening a listener confirmed development 127.0.0.1:5173 and preview 127.0.0.1:4173, strict ports, and the same /api proxy to http://127.0.0.1:3001. The backend source confirms its hardcoded loopback host and API-only routing.
+
+Setup, npm ci, db:init, dev, start, preview and backup instructions were checked against scripts/source/configuration, **not executed as a clean-install or development-storage walkthrough**. The initializer applies pending migrations and seeds missing categories; running it is intentionally outside this documentation verification. No dependency installation, development database initialization/migration/reset, or new live application walkthrough was performed.
+
+### Remaining documentation evidence
+
+README screenshot names are planned placeholders only; no portfolio image files, demo generator or demo records were created. A complete clean-database/demo/restart record, 10,000-row benchmark results (30 warm list/summary measurements with actual p95, hardware and parameters), and broader keyboard/screen-reader evidence remain absent. Documenting these gaps does not satisfy the corresponding release checks. The p95 target itself is aspirational, but measurement evidence is required by the release plan.
+
+### Handoff
+
+Modified only README.md, docs/API.md, docs/ARCHITECTURE.md, docs/IMPLEMENTATION_PLAN.md, and docs/VERIFICATION.md. No new files; no application changes or documentation-related code fixes. Builds regenerated ignored output, and tests used their existing isolated fixtures. Development records were not touched. No commit or push.
+
+Git status: five modified tracked documentation files; nothing staged or untracked. T14b documentation is ready for review; final local-only MVP release remains pending the known fixes and acceptance evidence above.
+
+
+## Release packaging and post-fix verification - November 4, 2026
+
+**Assessment: CONDITIONAL PASS. LOCAL-ONLY release package: NOT READY.** This entry supersedes current-status claims, not historical T14b/T14d results above. No public release, commit, or deployment has occurred.
+
+T14c resolved F1-F6 with mounted transaction/month tests. The subsequent BudgetDialog.tsx fix preserves showModal(), native background modality and Escape behavior; local Tab/Shift+Tab handling wraps enabled controls. Pending mutations focus the dialog, prevent cancellation/duplicates, and retain errors and values. Closing restores a connected trigger or the Budgets heading. Nine registered Chrome budget cases exercise Set/Edit/Remove, initial and boundary focus, actual background nonactivation, cancellation, saves, pending guards, failures and repeated reopening. The former BODY boundary state did not itself prove background interactivity.
+
+### Browser proxy investigation and isolation
+
+Earlier audit logs contained three GET /api/summary?month=2026-11 proxy failures with ECONNREFUSED at 127.0.0.1:3001. Those were attempted connections to the development API target, not successful API responses. No backend listener was reached by those refused connections; no write is established. Their initiating page/tab/runner is **NOT VERIFIED**: the retained logs contain no request origin or initiator, and guarded reruns did not reproduce them. Do not attribute them to an external tab or fixture without evidence.
+
+Two configuration weaknesses were verified: Vite merged proxy: {} with the application's /api proxy, and its port-zero handling could fall back to the normal development port. These explain a possible forwarding path, not the unidentified caller. The browser runner now uses test-only configFile: false, the existing React/Tailwind plugins, middleware mode, HMR disabled, and a Node HTTP listener bound to 127.0.0.1 on an OS-assigned port. Production Vite settings are untouched. A boundary rejects actual /api requests with explicit 503 TEST_API_BLOCKED responses, records request metadata in temporary api-requests.json, and fails on unexpected traffic.
+
+One additional regression deliberately requests the summary endpoint and verifies the blocked response and request trace. All 42 previous interaction cases remain registered. The final run passed **43 Chrome checks**; its trace contained exactly the deliberate Node probe and no unexpected API requests. This verifies the current boundary, not the historical caller. **Unattributed prior requests remain a release blocker as required by the packaging task.**
+
+### Executed commands
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| npm.cmd run typecheck | 0 | Both workspaces passed. |
+| npm.cmd run build | 0 | Frontend build and backend compilation passed. |
+| npm.cmd test | 0 | 399 frontend / 17 files; 962 backend / 17 files; 1,361 total / 34 files. |
+| npm.cmd run test:browser --workspace frontend | 0 | 43 passed, 0 failed; Chrome 156.0.8078.80. |
+
+The Vitest baseline is unchanged; Chrome increased from 42 to 43 because of the isolation regression. Browser screenshots, isolated profile and request trace are temporary artifacts, not portfolio images or release files. Typecheck/build/test/browser were rerun together; no unexpected API traffic occurred in that run.
+
+### Evidence continuity and remaining limits
+
+Original T14d failure text and its 10,000-row measurements are preserved. Backend, migrations, query and financial code, lockfile and production proxy have not changed from the rehearsal evidence; the focus fix and browser-only isolation do not invalidate those results. No benchmark was rerun or invented. The original historical CONDITIONAL PASS remains accurate for its snapshot; the budget blocker is now resolved, while the separate packaging attribution blocker remains.
+
+README, ARCHITECTURE, IMPLEMENTATION_PLAN and the verification index now reflect current fixes and evidence. The .gitignore comment is translated with every ignore pattern preserved. Full screen-reader speech, VS Code preview, fresh-install reproducibility and backup restoration remain unverified. Independently rounded Dashboard shares can total 101% without affecting cents. The unauthenticated API is approved only for trusted loopback use, never public hosting or LAN exposure.
+
+
+## Prompt 44 - WebSocket listener resolution and acceptance - November 4, 2026
+
+**Result: PASS. LOCAL-ONLY RELEASE GATE: READY for human review.** This dated entry supersedes earlier current-gate assessments while preserving their historical observations and all benchmark measurements. No commit, tag, push, publication or public-deployment approval is implied.
+
+### Confirmed cause and narrow fix
+
+Prompt 43 observed the intended ephemeral loopback HTTP listener plus an unintended IPv6 wildcard TCP listener at [::]:24678. Installed Vite 7.3.7 createWebSocketServer only returns a disabled transport for server.ws === false; hmr: false alone leaves its standalone WebSocket transport enabled, with default port 24678 and unspecified host. That confirms the previously observed listener belongs to the test runner rather than an unrelated process. No additional wildcard listener was deliberately opened to reproduce it in this task.
+
+The test-only createServer call in frontend/test/browser/analytics.browser.mjs now sets **server.ws: false** alongside hmr: false and middlewareMode: true. Node still binds HTTP to 127.0.0.1 on an OS-assigned port. configFile: false, API rejection/tracing and the final unexpected-request assertion remain. frontend/vite.config.ts, backend APIs, schema, financial logic, lockfile and application features are unchanged. All nine Budget Dialog regressions remain registered.
+
+### Runtime regression guard
+
+New frontend/test/browser/listener-guard.mjs observes actual Node net.Server listening events, records addresses/ports and closes unsafe listeners; its assertions reject wildcard and non-loopback addresses. It distinguishes IPv4 127/8, IPv6 ::1 and IPv4-mapped loopback from wildcard/LAN addresses. Node connection attempts to port 3001 are blocked and recorded as failures.
+
+Windows CIM process ancestry and Get-NetTCPConnection snapshots select only TCP listeners owned by the runner and its descendants, including native Chrome. The browser case asserts that both the runner HTTP socket and Chrome debugger socket are found under their actual PIDs. Unrelated system listeners are excluded. Evidence is printed and written to temporary listeners.json; API traffic remains in api-requests.json. These are test artifacts, not staged release files.
+
+Node server observation is continuous from before Vite creation. Native-child inspection is a start/end snapshot, not continuous OS surveillance: transient native listeners between snapshots and UDP endpoints are not verified. PowerShell/CIM/TCP inspection failures and unsupported operating systems fail explicitly rather than silently skipping. This guard is currently verified on Windows/Node 24, not claimed as cross-platform OS coverage.
+
+### Unchanged-configuration acceptance runs
+
+Every normal run below executed npm.cmd run test:browser --workspace frontend with the final fixed runner and permanent guard. No external runtime hooks, port rewriting, alternate configuration or development backend was used. Each start/end OS snapshot contained exactly two test-owned listeners, both IPv4 loopback; continuous Node evidence contained only the HTTP socket. No port 24678 listener, unexpected API traffic or Node port-3001 attempt was recorded.
+
+| Run | Node PID / HTTP port | Chrome PID / debugger port | Listeners per snapshot | Tests | Exit |
+| --- | --- | --- | --- | --- | --- |
+| Normal 1 | 28380 / 50306 | 26132 / 50307 | 2, both 127.0.0.1 | 44 passed | 0 |
+| Normal 2 | 23812 / 50376 | 27160 / 50378 | 2, both 127.0.0.1 | 44 passed | 0 |
+| Normal 3 | 9812 / 51370 | 20816 / 51371 | 2, both 127.0.0.1 | 44 passed | 0 |
+| Clean normal after negative | 13688 / 51472 | 27616 / 51473 | 2, both 127.0.0.1 | 44 passed | 0 |
+
+All normal API traces contained exactly one intentional marked summary probe and zero unexpected requests. Temporary artifact directories were expense-analytics-browser-BmOJ3s, -uwJFLF, -DZw2Qm and -Id4erF respectively under the OS temporary directory. Chrome version: 156.0.8078.80. The count increased from 43 to 44 solely because of the actual-listener case; no existing case was removed.
+
+### Negative API isolation acceptance
+
+The final runner supports the explicit test-only environment flag BROWSER_ISOLATION_NEGATIVE=1. It generates an unmarked GET /api/isolation-negative against its own isolated HTTP server after the normal marked probe. Actual result: **503 TEST_API_BLOCKED**, recorded with probe: false, then the normal final assertion reported Unexpected real API requests and the npm process exited **1** after 44 cases passed. This is an expected negative-test failure, not a normal-suite failure. The negative run used HTTP 51419 (Node PID 27292), Chrome debugger 51420 (PID 15292), both loopback. Its artifact directory was expense-analytics-browser-tzwa6X. A clean normal run afterward passed 44/44 with exit 0. The flag was removed before that run.
+
+### Full verification and evidence continuity
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| npm.cmd run typecheck | 0 | Frontend and backend passed. |
+| npm.cmd run build | 0 | Frontend build and backend compilation passed. |
+| npm.cmd test | 0 | 399 frontend in 17 files; 962 backend in 17 files; 1,361 total in 34 files. |
+| npm.cmd run test:browser --workspace frontend | 0 | Four normal runs passed 44 cases each; negative mode intentionally exited 1. |
+
+No dependency was installed and no development backend was launched. Development database metadata remained unchanged with no journal/WAL sidecars; no financial record was opened or mutated through the application. The previously recorded real-backend T14d workflows and 10,000-row benchmark remain attributable to unchanged backend/query code; their values were not rewritten or remeasured.
+
+The initiator of the three historical refused summary proxy attempts remains **unknown**. Current proxy removal, API blocking, negative failure detection and repeated runtime listener checks mitigate the present isolation risk; unavailable historical attribution alone is no longer a release blocker under the accepted review criteria. Full screen-reader speech, VS Code preview, fresh installation and backup restoration remain unverified. Dashboard independently rounded shares can still total 101% without changing cents. These limits do not authorize public exposure: the unauthenticated MVP remains restricted to trusted local loopback use.

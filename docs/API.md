@@ -1,6 +1,6 @@
-# Implemented API through T08
+# Expense Tracker API
 
-Local base URL: `http://127.0.0.1:3001/api`; Vite proxies `/api` from port 5173. These unauthenticated APIs are localhost-only. JSON objects use camelCase, monetary values use integer USD cents, and timestamps are UTC. Examples below assume a freshly seeded database; IDs/timestamps are illustrative, not fixed contract values. Discover category IDs through GET /categories.
+Local base URL: `http://127.0.0.1:3001/api`; Vite development (port 5173) and build preview (port 4173) proxy `/api` to the local backend. Run the API separately when using preview. These unauthenticated APIs are localhost-only. JSON objects use camelCase, monetary values use integer USD cents, and timestamps are UTC. Examples below assume a freshly seeded database; IDs/timestamps are illustrative, not fixed contract values. Discover category IDs through GET /categories.
 
 ## GET /categories
 
@@ -185,7 +185,7 @@ All errors follow `{error:{code,message,fields?}}`. Client errors do not include
 
 GET /health retains 200 `{data:{status:"ok"}}` for a ready database and generic 503 otherwise. Business routers receive the explicit database injected into createApp; constructing an app without a database opens no file and mounts no business routers. Existing server startup always initializes and injects storage before listening.
 
-Frontend dashboard/budget UI/chart integrations are not implemented through T08.
+Dashboard, Transactions, Budgets, and Analytics consume these APIs. No additional chart endpoint is required. See README.md for current feature status and known UI limitations.
 
 ## Monthly budgets
 

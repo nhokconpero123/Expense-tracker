@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 import type { BudgetEditor, BudgetStore } from '../lib/budgetStore';
 import { formatMonthDisplay } from '../lib/date';
 import { formatCentsToUsd } from '../lib/money';
@@ -23,6 +23,10 @@ export function BudgetDialog({ editor, pending, store, fallbackFocus }: {
       else fallbackFocus.current?.focus();
     };
   }, [removing, fallbackFocus]);
+  useLayoutEffect(() => {
+    // Disabled pending controls need an in-dialog keyboard target.
+    if (pending) dialogRef.current?.focus();
+  }, [pending]);
   useEffect(() => {
     if (editor.amountError) amountRef.current?.focus();
     else if (editor.error) errorRef.current?.focus();
@@ -32,6 +36,20 @@ export function BudgetDialog({ editor, pending, store, fallbackFocus }: {
     <dialog ref={dialogRef} aria-labelledby="budget-dialog-title" aria-describedby="budget-dialog-description"
       aria-modal="true" onCancel={event => { event.preventDefault(); store.cancel(); }}
       onKeyDown={event => {
+        if (event.key === 'Tab' && !event.defaultPrevented) {
+          const dialog = event.currentTarget;
+          const controls = [...dialog.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]')]
+            .filter(control => control.tabIndex >= 0 && !control.matches(':disabled') && control.getClientRects().length > 0);
+          const first = controls[0], last = controls.at(-1);
+          // Native modality keeps the background inert; explicitly wrap the focus cycle.
+          if (!first || !last) { event.preventDefault(); dialog.focus(); }
+          else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+            event.preventDefault(); last.focus();
+          } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog)) {
+            event.preventDefault(); first.focus();
+          }
+          return;
+        }
         if (event.key !== 'Escape' || event.defaultPrevented) return;
         // Keep dismissal local and use the same pending-state guard as Cancel.
         event.preventDefault();

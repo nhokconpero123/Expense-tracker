@@ -1,22 +1,72 @@
+# Dependencies
 node_modules/
+
+# Build output & caches
 dist/
+build/
+out/
+.next/
+.vite/
+.turbo/
+.cache/
 coverage/
 *.tsbuildinfo
+.eslintcache
+
+# Logs
 *.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env & secrets
 .env
 .env.*
-!.env.example
+.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Databases & local data
 *.db
 *.db-*
 *.sqlite
 *.sqlite-*
 *.sqlite3
 *.sqlite3-*
-data/
+/data/
+uploads/
+
+# Browser testing artifacts
+playwright-report/
+test-results/
+blob-report/
+screenshots/
+traces/
+
+# Editor / OS
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
+Desktop.ini
+nul
+*.swp
+*.tmp
+*.bak
+tmp/
+temp/
+
+# AI agent working dirs
 .agents/
 Agents/
+
+# Docs: keep only verification files
 docs/*
-!docs/T12_VERIFICATION.md
-!docs/T13_VERIFICATION.md
+!docs/*_VERIFICATION.md
+.vscode/
+AGENTS.md
+playwright-report/
+test-results/
+screenshots/

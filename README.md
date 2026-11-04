@@ -1,152 +1,254 @@
 # Expense Tracker
 
-A single-user, localhost-only personal finance application. T01–T08 provide the React landing screen, input validation, safe HTTP errors, durable SQLite storage, categories, transaction APIs, monthly summary/analytics data, and monthly budget APIs. Frontend dashboard/budget UI/charts and authentication remain unimplemented. See [docs/API.md](docs/API.md) for the implemented contracts and examples.
+A single-user, localhost-only application for recording income and expenses, planning monthly category budgets, and understanding spending. It brings a ledger, monthly cash-flow overview, budgets, charts, and readable data tables into one interface.
 
-## T08 monthly budgets
+**Project status:** T01–T13 features are implemented. T14a audit, T14b documentation, T14c fixes, and T14d real-backend rehearsal are complete. The post-rehearsal Budget Dialog focus fix passes browser regression tests. The test-only Vite WebSocket listener is disabled and repeated runtime listener/API isolation checks pass. The package is **READY for human-reviewed local-only release**; see the latest addendum in [T14d verification](docs/T14D_VERIFICATION.md). Historical proxy-request attribution remains unknown and is not represented as resolved. There is no authentication, multi-user support, or approved public deployment.
 
-GET `/api/budgets?month=YYYY-MM` returns all expense categories ordered by name, including categories without limits. Missing amount/remaining/utilization values are null; spending is always derived from monthly expense transactions. PUT `/api/budgets/:categoryId/:month` atomically creates/replaces a limit and returns 200. DELETE returns empty 204 or 404 for an absent limit and preserves transactions. Only expense categories are eligible. Reads use a consistent snapshot; writes and response readback share an immediate transaction. No database migration or manual initialization change is needed.
+## Features
 
-Monetary outputs remain safe integer cents. Utilization is uncapped, rounded half-up to one decimal with BigInt arithmetic before conversion to a JSON display number. Extremely large percentages may exceed floating-point decimal resolution; this does not affect exact cents, remaining values, or status comparisons.
+| Area | Implemented behavior |
+| --- | --- |
+| Monthly Dashboard | Income, expenses, net balance, and expense-category totals for the selected month; loading, empty, error, and retry states. |
+| Transactions | Create, browse, edit, and delete income/expense records with category, date, amount, and optional note. Deletion requires confirmation. |
+| Search and pagination | Combine type, category, inclusive date range, and literal note search. Results sort by date descending, then ID descending; default page size is 20. |
+| Monthly Budget Management | Set/edit/remove one monthly limit per expense category; compare spending, remaining amount, utilization, and textual status. Removing a limit preserves transactions. |
+| Spending Analytics | Daily bar chart, category donut, category selection/details, and Chart/Table View controls. Tables expose exact values without hover; daily rows can expand from spending days to the entire month. |
 
-## Prerequisites and choices
+Dashboard, Budgets, and Analytics share the selected month during navigation. Transaction filters are separate: the ledger is all-time until date filters are supplied, and filtering it does not change monthly totals.
 
-- Windows PowerShell, Node.js **24 LTS** (minimum and tested baseline **24.19.0**), npm **11.x**. `.nvmrc` records the baseline; install a supported Node 24 patch from [Node.js](https://nodejs.org/en/download). npm workspaces share one root lockfile. Other Node majors are intentionally outside the current project engine range.
-- Backend: Express 5, strict TypeScript, ESM/NodeNext. `tsx` runs development source; `tsc` compiles the backend for normal Node startup. Frontend: React 19, Vite 7, strict TypeScript, Tailwind CSS 4 through its [Vite plugin](https://tailwindcss.com/docs/installation/using-vite), and Recharts 3 installed for future analytics.
-- SQLite driver: [better-sqlite3](https://github.com/WiseLibs/better-sqlite3), major 12, whose package engine range includes Node 24. Its synchronous prepared-statement API matches short local queries in the approved architecture. It is a native dependency: a compatible prebuilt binary is preferred; environments without one may require the supported native build toolchain. The driver is installed but not imported or connected in T01.
-- [Node release schedule](https://github.com/nodejs/Release) establishes LTS support. `package-lock.json` records the exact dependency versions used; use `npm.cmd ci` to reproduce them.
+Search is ASCII case-insensitive and literal for Unicode; `%`, `_`, and backslash are ordinary search characters. Full Unicode case folding and normalization are intentionally unsupported.
 
-## Windows PowerShell setup
+## Technology stack
 
-Run from the repository root. Use `npm.cmd` because Windows execution policy may block the `npm.ps1` shim; no execution-policy change is necessary.
+- **Frontend:** React 19, Vite 7, strict TypeScript, Tailwind CSS 4, Recharts 3.
+- **Backend:** Node.js 24, Express 5, strict TypeScript with ESM/NodeNext.
+- **Storage:** SQLite through better-sqlite3 12, prepared statements, foreign keys, and versioned migrations.
+- **Testing:** Vitest 5, Supertest, and a separate real-Chrome interaction test runner.
+- **Tooling:** npm workspaces with one root `package-lock.json`; tsx for backend development.
+
+Use the lockfile for exact dependency versions; `npm.cmd ci` reproduces that dependency set.
+
+## Architecture and engineering decisions
+
+```text
+React pages and shared MonthContext
+              |
+       hooks / API clients
+              | JSON /api via local Vite proxy
+Express routes -> validation -> services -> repositories
+                                                 |
+                                               SQLite
+```
+
+- **Exact USD values:** money is stored and sent as integer cents. For example, `12.34` becomes `1234` without floating-point multiplication. Individual transaction/budget amounts range from $0.01 to $1,000,000.00. Backend aggregate checks reject unsafe totals; BigInt-based formatting preserves cents in large totals and negative balances.
+- **One source of financial truth:** summary and budget values come from persisted transactions. The backend provides a complete, zero-filled daily series, including leap days; the frontend does not fill it again or regroup authoritative totals.
+- **Explicit calendar membership:** dates use `YYYY-MM-DD`, months use `YYYY-MM`, and supported years are 1900–9999. Reporting follows the transaction date, not UTC metadata timestamps. Net balance means monthly income minus expenses, not an account balance.
+- **Atomic writes and consistent reads:** services own SQLite transactions around writes, aggregate guards, and readback. Related summary queries share a read snapshot. Constraints enforce category/type relationships and unique category/month budgets.
+- **Small state model:** React context shares month and transaction revision state without Redux/Zustand. Monthly loaders use request ordering and cancellation to reject obsolete responses. A successful write is distinguished from a later refresh failure.
+- **Chart alternatives:** native category buttons and readable tables complement SVG/hover interactions. This does not imply every application accessibility criterion is verified; see known limitations.
+- **Local deployment boundary:** the API is a separate process; it does not serve the frontend build. Vite development/preview serves the UI and proxies API requests locally.
+
+```text
+frontend/src/         Pages, components, hooks, API clients, money/date utilities
+frontend/test/browser/ Isolated Chrome Analytics test entry and runner
+backend/src/          Routes, validators, services, repositories, database lifecycle
+backend/data/         Default local SQLite storage (Git-ignored)
+docs/                 Requirements, API contract, architecture, and verification history
+```
+
+## Prerequisites
+
+The documented setup targets **Windows PowerShell**:
+
+- **Node.js >=24.19.0 and <25**; `.nvmrc` records `24.19.0` as the tested baseline.
+- **npm >=11 and <12**; the documentation verification environment uses npm `11.17.0`.
+- A browser for the application. The optional browser suite requires an installed Chrome executable.
+- better-sqlite3 is a native dependency. A compatible prebuilt binary is preferred; if unavailable, installation may require a supported Windows C++/Python build toolchain. A global SQLite command-line installation is not required.
+
+Use `npm.cmd` to avoid PowerShell blocking the `npm.ps1` shim. Do not change execution policy just to run these commands.
+
+## Install and run in development
+
+Clone this repository using its GitHub URL or download and extract its ZIP, then open PowerShell in the repository root (the folder containing the root package.json):
 
 ```powershell
 node --version
 npm.cmd --version
 npm.cmd ci
-if (-not (Test-Path backend/.env)) { Copy-Item .env.example backend/.env }
+if (-not (Test-Path -LiteralPath 'backend/.env')) {
+    Copy-Item -LiteralPath '.env.example' -Destination 'backend/.env'
+}
 npm.cmd run db:init --workspace backend
 npm.cmd run dev
 ```
 
-The environment copy is optional: defaults work without it. Keep existing environment files. The initializer creates missing schema and catalog entries; normal backend startup also performs this same atomic initialization before listening. There is no reset command. Back up an existing database before applying new migrations.
+The environment-file copy is optional because defaults work without it; the conditional preserves an existing file. `db:init` creates missing schema and seeds the fixed category catalog. Startup performs the same initialization, so explicitly running it first is useful but not required. No sample transactions or budgets are inserted by initialization.
 
-- Frontend: http://127.0.0.1:5173
-- API: http://127.0.0.1:3001/api/health
-- Proxied API: http://127.0.0.1:5173/api/health
+Open **http://127.0.0.1:5173**. Stop development with **Ctrl+C**; the root runner stops both workspace commands. Neither listener should be exposed through a LAN address or public tunnel.
 
-Both development servers bind exclusively to IPv4 loopback. Do not override the host, use public tunnels, or expose this unauthenticated MVP through LAN/public hosting. Use browser viewport emulation for mobile layouts. Fixed Vite ports fail rather than silently selecting another port. Stop development with Ctrl+C; the root runner stops both commands.
+## Database initialization, migrations, and backups
 
-`backend/.env` supports `PORT` (integer 1–65535, default 3001) and `DATABASE_PATH` (default `backend/data/expense-tracker.sqlite`). A configured relative path, such as `./data/expense-tracker.sqlite`, is resolved relative to `backend/`, regardless of the caller's working directory. Absolute paths are supported. The default location is identical for source and compiled entrypoints. Empty paths and development `:memory:` configuration are rejected. Backend binding remains hardcoded to `127.0.0.1`; there is no HOST override. If you change PORT, also update the Vite proxy target. No secrets belong in `VITE_*` variables.
+The default file is `backend/data/expense-tracker.sqlite`, shared by source and compiled backend startup. A relative `DATABASE_PATH` is resolved from `backend/`, regardless of the command's working directory. An absolute path is also accepted. Empty paths and development `:memory:` storage are rejected.
+
+`npm.cmd run db:init --workspace backend` and normal backend startup apply pending migrations and insert missing catalog entries atomically. Migration history must be compatible; initialization never resets existing records or replaces the database. There is no reset or automatic migration-down command. Do not delete the database to resolve an initialization failure.
+
+Before schema changes or manual storage work:
+
+1. Stop all application processes using that database and ensure its connections have closed.
+2. Copy the configured SQLite file to a private, separate backup location. If SQLite journal/WAL sidecar files remain, preserve the complete file set together; do not copy only the main file from a running database.
+3. Preserve the original backup. Rehearse restoration using a separate copy and an explicit `DATABASE_PATH`, rather than overwriting working records.
+
+Backup restoration and the full compiled-server restart walkthrough remain release checks to record; these instructions are not evidence that they were completed.
+
+Automated database tests use memory or newly allocated private temporary files. Test mode ignores the development path, rejects unmanaged file paths, and prevents development-mode access under Vitest. Persistence tests close/reopen isolated files; they do not reset development storage.
 
 ## Commands
 
-All commands below run at the repository root.
+Run all commands from the repository root.
 
 | Command | Purpose |
 | --- | --- |
-| `npm.cmd run dev` | Start both development servers with joint shutdown |
-| `npm.cmd run dev --workspace frontend` | Start Vite only |
-| `npm.cmd run dev --workspace backend` | Start the watched TypeScript API only |
-| `npm.cmd run typecheck` | Check strict TypeScript in both workspaces, including tests/configuration |
-| `npm.cmd run build` | Build frontend assets and compile backend source |
-| `npm.cmd test` | Run each workspace's Vitest command; backend includes Supertest health coverage |
-| `npm.cmd start` | Run compiled backend at loopback (build first) |
-| `npm.cmd run db:init --workspace backend` | Apply pending migrations and seed missing categories without starting HTTP |
-| `npm.cmd run preview --workspace frontend` | Preview frontend build at 127.0.0.1:4173; no API proxy is configured for preview |
+| `npm.cmd ci` | Install the locked workspace dependencies; use for initial setup. |
+| `npm.cmd run dev` | Run the loopback API and Vite together. |
+| `npm.cmd run dev --workspace frontend` | Run Vite only. |
+| `npm.cmd run dev --workspace backend` | Run the watched TypeScript API only. |
+| `npm.cmd run db:init --workspace backend` | Apply pending migrations and seed missing categories; preserve records. |
+| `npm.cmd run typecheck` | Check strict TypeScript in both workspaces. |
+| `npm.cmd run build` | Build `frontend/dist` and compile `backend/dist`. |
+| `npm.cmd test` | Run the frontend/backend Vitest suites, including Supertest integrations. |
+| `npm.cmd run test:browser --workspace frontend` | Run the separate isolated Analytics Chrome suite. |
+| `npm.cmd start` | Start the compiled API only; build first. |
+| `npm.cmd run preview --workspace frontend` | Serve the frontend build locally; build first and run the API separately. |
 
-Frontend Vitest uses a Node environment and includes pure USD-parser tests. Its command retains the T01 `--passWithNoTests` option, but tests are present and executed. Backend tests cover input validation, HTTP errors, SQLite schema/migrations, isolation, persistence, and readiness. Supertest uses ephemeral **loopback-only** listeners and closes them afterward. Databases are in-memory or newly allocated temporary test files; no test opens the development database. Production backend output excludes test files.
-
-## T02a validation utilities
-
-- `validateMoneyCents(value: unknown)` accepts primitive numbers that are safe integers from 1 through 100000000 cents. No string coercion is performed.
-- `validatePositiveId(value: unknown)` accepts primitive numbers from 1 through Number.MAX_SAFE_INTEGER. It does not check database existence.
-- `parsePositiveId(value: unknown)` accepts canonical ASCII digit strings starting with 1–9. Leading zeros, whitespace (including trailing newlines), signs, decimal points, exponent/hex notation, and unsafe results are rejected.
-- `parseUsdToCents(input: unknown)` accepts unsigned ASCII whole-dollar strings with optional one/two decimal places. Leading zeros are allowed; whitespace is rejected rather than trimmed. Examples: `12` -> 1200, `12.3` -> 1230, `12.34` -> 1234, `0.01` -> 1, and `1000000.00` -> 100000000. It constructs cent digits as text, bounds their length, then converts the bounded integer to Number; no floating-point multiplication or rounding is used. Symbols, separators, exponents, zero, negatives, excess precision, and over-limit amounts are rejected.
-
-These functions return a validated number or throw a documented `TypeError` for an incorrect primitive type and `RangeError` for invalid format/range. Callers can catch these standard error classes; the T02d `validateInput` adapter provides explicit HTTP validation mapping without changing the pure validators. Frontend parsing is separate from formatting and UI, and backend validation remains mandatory when API integration is implemented. Numeric validators operate on decoded numbers: JSON number spellings such as `1e2` are indistinguishable from `100` after decoding; lexical restrictions apply to the string parsers.
-
-## T02b calendar utilities
-
-`backend/src/validation/calendar.ts` exports pure functions using the same documented TypeError/RangeError convention as T02a:
-
-- `validateDate(value: unknown): string` accepts exact ASCII `YYYY-MM-DD` Gregorian dates from `1900-01-01` through `9999-12-31`. Future dates are allowed. Invalid days and non-leap February 29 are rejected.
-- `validateMonth(value: unknown): string` accepts exact ASCII `YYYY-MM` from `1900-01` through `9999-12`.
-- `validateDateRange(startDate: unknown, endDate: unknown): DateRange` validates both inclusive endpoints and returns `{startDate, endDate}`. Equal endpoints are valid; reversed ranges are rejected. Both endpoints are required by this primitive utility; optional query-field composition is deferred to T02c.
-- `getMonthDateRange(value: unknown): DateRange` returns inclusive first/last dates directly, including `{startDate: '9999-12-01', endDate: '9999-12-31'}` without constructing a next-month boundary.
-
-Wrong types throw TypeError; malformed/out-of-range strings and reversed ranges throw RangeError. Whitespace, timestamps, timezone suffixes, non-ASCII digits, and unpadded values are rejected without trimming or normalization. Leap years are divisible by 4, except centuries not divisible by 400: 1900/2100 are not leap years, while 2000/2400 are. Validators use arithmetic and canonical string comparisons, never Date parsing, UTC conversion, or the current clock. No HTTP or database integration is included.
-
-## T02c composed request validators
-
-All functions are pure, accept `unknown`, return fresh typed objects, and reuse the existing money/ID/calendar validators. They throw documented TypeError for wrong shapes/types (including missing required fields) and RangeError for unknown fields, invalid values, or exceeded limits. They fail on the first error; T02d provides an explicit HTTP adapter, without adding field-error aggregation. No Express imports, database lookups, or side effects are introduced into these validators.
-
-- `validateTransactionRequest(body)` validates the same complete editable fields for POST and PUT: `type`, `amountCents`, `categoryId`, and `date`. `note` is optional only when absent; omission produces `""`, while explicit null/undefined is invalid. Notes are trimmed before enforcing the 500-character limit. Immutable IDs/timestamps and all other unknown fields are rejected.
-- `validateBudgetBody(body)` accepts only required `amountCents`. `validateBudgetParams(params)` requires canonical string `categoryId` and calendar `month`; both must be present. `validateBudgetRequest(body, params)` composes them for upsert. The params validator can also be reused by a future DELETE handler. Category existence and expense-only rules remain database-backed responsibilities.
-- `validateTransactionQuery(query)` accepts only `type`, `categoryId`, `startDate`, `endDate`, `q`, `page`, and `pageSize`. Absent page/pageSize default to 1/20. Supplied values must be strings; numeric parameters use canonical positive digits with no leading zeros, whitespace, signs, decimals, or exponents. page is a positive safe integer; pageSize is 1..100. Date endpoints may be supplied independently; together they must be ordered inclusively. q is trimmed, capped at 100 characters, and omitted from output when blank. Its case and literal `%`/`_` characters are preserved for later repository matching. All filters are retained together for AND semantics; validation does not resolve category/type relationships.
-
-Request records must have Object.prototype or a null prototype. Arrays, null, class instances, unknown own keys (including symbols/non-enumerable keys), and accessor fields are rejected. No getter is executed for ordinary record validation. Optional defaults apply only to absent own fields, never explicit undefined. String length limits use JavaScript UTF-16 code units after trimming, consistent with the T02c tests; no silent truncation occurs. Query/schema validation is not yet wired into routes.
-
-## T02d HTTP error boundary
-
-`backend/src/app.ts` installs `express.json({ limit: 16 * 1024 })` before routes, then the unchanged health route, followed by `notFound` and `errorHandler` from `backend/src/middleware/errors.ts`. The limit is in bytes, not characters. The JSON parser retains Express's strict container behavior; malformed JSON and scalar/null JSON are rejected. Non-JSON content types are not parsed by this middleware and must be validated by future routes as appropriate.
-
-| HTTP status | Error code | Public message |
-| --- | --- | --- |
-| 400 | VALIDATION_ERROR | Request validation failed. |
-| 400 | INVALID_JSON | Request body must contain valid JSON. |
-| 404 | NOT_FOUND | Resource not found. |
-| 413 | PAYLOAD_TOO_LARGE | JSON request body must not exceed 16 KiB. |
-| 500 | INTERNAL_ERROR | An unexpected error occurred. |
-
-Responses use JSON `{error:{code,message,fields?}}`. `validateInput(() => validator(input), field?)` catches TypeError/RangeError only around an explicitly invoked pure validator, converting them to RequestValidationError. An optional typed field selects a fixed allowlisted message, such as `amountCents: "Enter integer cents from 1 to 100000000."`. Whole-schema calls without field context return the generic validation envelope; the adapter does not infer field names from error text. Future routes can throw NotFoundError for absent resources. Raw TypeError/RangeError elsewhere remain internal 500s, rather than masking programming defects as bad requests.
-
-Raw error messages, stack traces, SQL, filesystem paths, request URLs, notes, and bodies are never serialized by this boundary. It logs only a fixed internal-error marker/code for 500s and nothing for expected request errors. If headers are already sent, a fresh sanitized error is delegated to Express for connection cleanup; an already-started response cannot be replaced with a JSON envelope. Parser failures use recognized parser type/status metadata, not arbitrary error status properties. No business/test routes are exposed by createApp; test-only routes live in the Supertest harness. All test listeners use ephemeral loopback ports and no database.
-
-## Manual foundation verification
-
-With `npm.cmd run dev` running, use a second PowerShell terminal:
+For a local build preview, first run `npm.cmd run build`. Then use two PowerShell terminals at the repository root:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:3001/api/health | ConvertTo-Json -Compress
-Invoke-RestMethod http://127.0.0.1:5173/api/health | ConvertTo-Json -Compress
-Get-NetTCPConnection -State Listen -LocalPort 3001,5173 |
-    Select-Object LocalAddress,LocalPort,OwningProcess
+# Terminal 1: compiled API
+npm.cmd start
 ```
 
-Both responses should be `{"data":{"status":"ok"}}`; both listeners must use `127.0.0.1`, not `0.0.0.0` or `::`. T03 health checks the database connection, foreign-key setting, migration versions, required table columns, and seeded catalog. It performs no writes or initialization. An absent, closed, incomplete, or incompatible database returns HTTP 503 with `{"error":{"code":"DATABASE_UNAVAILABLE","message":"Database is unavailable."}}`. To check compiled startup, stop development, run `npm.cmd run build --workspace backend`, then `npm.cmd start` and repeat the direct health/listener check.
+```powershell
+# Terminal 2: frontend preview
+npm.cmd run preview --workspace frontend
+```
 
-## T03 SQLite storage and safety
+This is a local build preview, not a public production deployment. The compiled API still initializes its configured database on startup.
 
-- `connection.ts` opens better-sqlite3 with foreign keys enabled on every connection. `initializeDatabase` applies migrations and category seeding as one transaction. Importing modules or calling `createApp()` never opens a database; the standalone server owns initialization/close and injects its connection into `createApp(database)`. Calling `createApp()` without a database reports unavailable readiness.
-- `migrate.ts` applies ordered contiguous positive versions in an immediate transaction, records UTC application timestamps, and skips applied versions. A failed batch rolls back DDL, data changes, and history. Unknown/gapped history fails rather than being rewritten. Migration 001 creates categories, transactions, budgets, and their indexes; schema_migrations is transactionally bootstrapped. Existing unversioned conflicting tables cause failure rather than adoption/reset.
-- `seed.ts` inserts the exact 11 PRD category keys using `ON CONFLICT(type,name) DO NOTHING`. IDs, timestamps, existing categories, transactions, and budgets are never replaced by repeated initialization. Only missing catalog entries are inserted.
-- Database constraints enforce positive safe IDs, integer cents 1..100000000, enums, matching composite category/type foreign keys, expense-only budgets, unique category/month budgets, nonempty category names, note length, and canonical date/month shapes/ranges. Date CHECKs do not prove month/day validity: backend calendar validation remains mandatory. SQLite affinity can coerce numeric text to integer storage; HTTP validators still reject numeric strings. SQL length measures Unicode code points while the backend enforces the stricter UTF-16 length limit. Embedded NULs in names/notes/dates/months are rejected at storage to avoid SQLite text-length truncation; writes handle unexpected constraint failures safely. T06 explicitly updates updated_at on successful replacement; no schema trigger is required.
-- No totals or balance columns, CRUD endpoints, or reset/delete migration commands are introduced. Keep applied migration files immutable; create a new reviewed migration for future changes. Migration history is version-based, without checksums or full schema-drift repair. Backups/recovery remain an operator responsibility; do not delete an incompatible database to make startup pass.
-- Test mode ignores DATABASE_PATH and defaults to `:memory:`. File tests must call `createTestDatabaseFile()` and pass its registered filename to `openDatabase({mode:'test',filename})`; arbitrary paths (including development paths) are refused before SQLite opens them. Development mode is forbidden when NODE_ENV=test or VITEST is set. Allocated file paths validate real parent directories and reject symlinks/hardlinks. Close test connections before disposing their private files; cleanup is non-recursive and refuses unexpected artifacts.
-- The default development directory is ignored by Git, as are common SQLite filenames/journals/WAL/SHM files. Tests never read `.env` or use an existing development database. The synthetic persistence fixtures are separate from normal development storage. Path guards protect the supported connection API, not deliberate direct imports of the underlying driver.
+## Local URLs and environment
 
-## T04 API layers and aggregate safety
+| URL | Purpose |
+| --- | --- |
+| `http://127.0.0.1:5173` | Vite development frontend |
+| `http://127.0.0.1:4173` | Frontend build preview |
+| `http://127.0.0.1:3001/api/health` | Direct API readiness: 200 when ready, otherwise 503 |
+| `http://127.0.0.1:5173/api/health` | Readiness through the development proxy |
+| `http://127.0.0.1:4173/api/health` | Readiness through the preview proxy when both processes run |
 
-Routes validate requests through T02 utilities, then call parameterized repositories and the transaction service. Creation checks category existence/type, inserts, checks aggregate safety, and reads the response in one immediate SQLite transaction. A category failure or unsafe total becomes a safe HTTP 400; absent transaction detail returns 404; unexpected database failures remain generic 500s. Unknown query fields are rejected. Express route-decoding URI errors marked 400 are also safely normalized without reflecting the invalid path.
+Frontend requests use relative `/api` URLs. Development proxies them to `http://127.0.0.1:3001`; installed Vite 7 also inherits that proxy for preview. Both frontend ports are fixed and fail if occupied. The API and frontend bind to `127.0.0.1`.
 
-All-time income and expense sums are read as BigInts and independently limited to Number.MAX_SAFE_INTEGER. Positive cents mean each category/date subset is bounded by its type's all-time sum; balances are also safe when both nonnegative type totals are bounded. The guard does not combine income and expenses into an unnecessarily restrictive single sum. Failed writes/readback roll back before any Location header or success response. Tests use deliberately oversized stored amounts only as controlled fixtures in private databases; schema CHECKs remain enabled during HTTP requests. No aggregate cache, schema changes, or production bypass exists. The guard currently scans totals on every creation; optimization is deferred until measurements justify it.
+Copy the root `.env.example` to **`backend/.env`**, not the repository root. Backend scripts load it if present. Existing process environment variables take precedence.
 
-## T05 list/search behavior
+| Setting | Default / behavior |
+| --- | --- |
+| `PORT` | `3001`; integer from 1 to 65535. |
+| `DATABASE_PATH` | `backend/data/expense-tracker.sqlite`; configured relative values resolve from `backend/`. |
 
-GET /api/transactions reuses the existing query validator. All supplied filters combine with AND; date endpoints are inclusive. A deferred read transaction spans category existence checking, matching COUNT, and page data. COUNT and SELECT use the same parameterized filters/join, and SQL applies LIMIT/OFFSET with date DESC/id DESC ordering. Pagination arithmetic uses BigInt before safe conversion to JSON numbers; valid huge pages return empty data with accurate metadata, not rounded offsets. Existing but type-incompatible categories return no matches; nonexistent categories return 400.
+There is no application HOST override or configurable frontend API-origin variable. If PORT changes, update the proxy target in `frontend/vite.config.ts` and use that API port in local URLs. Never put secrets into `VITE_*` variables: Vite exposes those values to browser code. The browser test runner separately accepts `CHROME_PATH` for a non-default Chrome installation; this is test tooling, not application configuration.
 
-Approved MVP search is ASCII case-insensitive only. SQLite's built-in lower is applied to notes and the bound pattern; `%`, `_`, and backslash are escaped for literal LIKE matching. Unicode characters match literally, without Unicode case folding or normalization: `LUNCH` matches `lunch`, `CAFé` matches `Café`, but `CAFÉ` does not match `Café`. Blank trimmed q means no search. A query containing NUL returns no matches because stored notes prohibit NUL; this avoids SQLite LIKE truncation. Full Unicode case-insensitive support is not claimed. Leading-wildcard search and large offsets can require scans; the 10,000-row test establishes correctness, not the separate aspirational 300 ms performance target.
+## API and reporting behavior
 
-## T06 replacement and deletion
+The base path is `/api`. Full request/response shapes, errors, and examples are in [docs/API.md](docs/API.md).
 
-PUT /api/transactions/:id reuses the complete create validator: type, amountCents, categoryId, and date are required; omitted note becomes empty. The service checks existence/category compatibility, performs a parameterized UPDATE, checks old/new monthly totals and the existing all-time guard as BigInts, and reads the result within one immediate transaction. It preserves ID/createdAt and returns 200 `{data: Transaction}`. updatedAt uses current UTC time when later than the previous value; otherwise it advances the previous timestamp by one millisecond. This avoids equality/regression on rapid edits or a backward clock. Failed edits roll back fields, timestamps, and database side effects.
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/health` | Database readiness |
+| `GET /api/categories` | Fixed catalog, optionally filtered by type |
+| `GET /api/transactions` | Filtered/paginated list |
+| `POST /api/transactions` | Create a record |
+| `GET /api/transactions/:id` | Read one record |
+| `PUT /api/transactions/:id` | Replace editable fields |
+| `DELETE /api/transactions/:id` | Remove a record; empty 204 response |
+| `GET /api/summary?month=YYYY-MM` | Income, expense, balance, category totals and daily expense series |
+| `GET /api/budgets?month=YYYY-MM` | All eligible expense categories and monthly budget/spending data |
+| `PUT /api/budgets/:categoryId/:month` | Create/replace a limit with `{ "amountCents": 10000 }`; returns 200 |
+| `DELETE /api/budgets/:categoryId/:month` | Remove only the limit; empty 204, or 404 when absent |
 
-DELETE /api/transactions/:id validates the ID and atomically checks/removes the record. It verifies that one row was deleted and the record is gone before returning 204 without a body. Repeated/missing deletion returns 404. Failed or ignored deletions roll back; other transactions and budget records are preserved. Both endpoints reject unknown query fields. Malformed input/category/aggregate failures return safe 400 responses; missing records return 404 and unexpected database failures return generic 500. UI confirmation belongs to a later frontend task and is not an extra API parameter.
+Summary returns `{data:{month,incomeCents,expenseCents,balanceCents,expensesByCategory,dailyExpenses}}`. Category totals exclude income and zero-spend categories. Daily values include every calendar day, including zeros and leap days. Both breakdowns reconcile to monthly expenses.
 
-## T07 monthly summary
+Budgets return `{data:{month,items}}`. Each item includes category ID/name, month, amount, spent, remaining, utilization percentage, and status. Without a limit, amount/remaining/utilization are null, status is `no_budget`, and spending remains visible. With a limit, exact cents determine `under`, `at_limit`, or `over`; remaining may be negative. Utilization text may exceed 100% while progress bars are capped. Percentages are rounded display values; extremely large percentages can lose floating-point decimal resolution without changing exact cents or statuses.
 
-GET /api/summary?month=YYYY-MM requires an explicit calendar month; missing/invalid/repeated/unknown query fields return safe 400 validation errors. It returns `{data:{month,incomeCents,expenseCents,balanceCents,expensesByCategory,dailyExpenses}}`. Only persisted transaction dates determine reporting membership; timestamps, current timezone, transaction list filters, and pagination do not affect it.
+## Testing strategy and evidence
 
-The service opens one deferred read transaction for income/expense totals, category spending, and daily spending. The repository reuses existing monetary SUM logic and adds parameterized expense GROUP BY queries. Category totals exclude income and zero-spending categories and sort by amount descending, category ID ascending. Daily entries cover every date in ascending order, zero-filled using existing month boundaries, including leap years and December 9999. SQL reads use BigInt mode; the pure service checks safe integer bounds before converting money/IDs for JSON, computes balance using BigInt, and verifies both expense breakdown sums agree. Unsafe/corrupt aggregates or database failures return generic 500 rather than rounded/mismatched values. Empty months return zero totals, no categories, and complete daily zeros. No derived totals, cache, schema changes, frontend calculations, or chart components are added.
+- Pure tests cover decimal parsing, exact USD formatting, Gregorian dates, validation, and reporting calculations.
+- Supertest and isolated SQLite tests cover real routes, constraints, rollback, aggregate safety, search semantics, snapshots, and persistence.
+- Frontend tests include server-rendered components, production stores/loaders, request races, and callback/reducer behavior. Some transaction coordinator tests exercise a test-local implementation rather than mounted production behavior; they do not establish full interaction coverage.
+- The separate Chrome suite mounts production Analytics, Transactions, and Budgets with deterministic intercepted responses. Its 42 interaction cases cover lifecycle transitions, keyboard/dialog behavior, pending safety, computed styles, tooltips, reduced motion, accessibility-tree semantics, and targeted responsive geometry. Two additional tests check API rejection and actual process-owned TCP listeners (44 checks total). The runner uses a dedicated loopback port, no development proxy, and records/rejects unexpected API traffic. This does not retrospectively identify three proxy attempts in an earlier audit.
 
-Current verification results and exact commands are recorded in [docs/VERIFICATION.md](docs/VERIFICATION.md). Planning documents live in `docs/`; follow [AGENTS.md](AGENTS.md). Deployment remains a separate, approval-gated post-MVP phase.
+The Chrome runner defaults to `C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`. If needed, set its executable path for the current PowerShell session:
+
+```powershell
+$env:CHROME_PATH = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+npm.cmd run test:browser --workspace frontend
+```
+
+Use a path that actually exists on your machine. The runner writes screenshots and an isolated profile to the temporary directory printed on completion; these are test artifacts, not committed portfolio screenshots. Browser cases run separately from `npm.cmd test`. Native-child TCP inspection currently requires Windows PowerShell, CIM and Get-NetTCPConnection permissions; unsupported platforms fail explicitly. Node listeners are observed continuously, while native-child listeners are checked in start/end snapshots; transient native listeners and UDP are outside this guard. The test-only BROWSER_ISOLATION_NEGATIVE=1 mode deliberately generates an unexpected blocked request and must exit nonzero.
+
+See [docs/VERIFICATION.md](docs/VERIFICATION.md) for current command results and historical task records, [T12 verification](docs/T12_VERIFICATION.md) for budget coverage/limitations, and [T13 verification](docs/T13_VERIFICATION.md) for Analytics browser evidence. Passing tests do not imply complete accessibility or release acceptance.
+
+## Security and scope limitations
+
+This is an unauthenticated application for a trusted local environment. **It is not safe to deploy publicly as-is.** Do not change listener hosts, create public tunnels, or expose it on a LAN. Loopback binding is not authentication; explicit backend Host/Origin hardening remains a possible follow-up.
+
+The backend validates requests, uses parameterized queries, limits JSON bodies, and returns sanitized errors. These controls are not a claim of production security. Keep personal databases, backups, and `.env` files private and out of Git. Never use personal records in public screenshots.
+
+The MVP intentionally excludes authentication, multiple users, bank connections, multiple currencies, custom categories, recurring transactions, imports/exports, accounts/transfers, and budget rollover. Transaction drill-down from charts and URL month persistence are optional future enhancements. Any public demo requires a separately approved security model and isolated synthetic data.
+
+## Known issues and remaining release work
+
+T14c fixed the audited transaction focus, category Retry, stale rows/feedback, and month-boundary findings, with mounted interaction coverage. The later Budget Dialog focus-cycle blocker is also fixed: native modality is preserved, forward/reverse boundaries wrap locally, pending mutations block dismissal, and connected triggers or a stable heading receive restored focus.
+
+Current verification: **399 frontend + 962 backend = 1,361 Vitest cases**; **44 Chrome checks** (42 interaction cases plus API and listener isolation checks). Typecheck and build pass. [T14d verification](docs/T14D_VERIFICATION.md) preserves the real-backend workflow, restart persistence, responsive checks, and 10,000-row measurements; those backend/query paths are unchanged.
+
+- Historical uncertainty: the caller of three earlier summary proxy attempts remains **NOT VERIFIED**. Current isolation passes repeated normal and negative checks; this mitigates the current risk without establishing the historical source.
+- Full screen-reader speech, VS Code embedded-preview acceptance, fresh-install reproducibility, and backup restoration remain unverified.
+- Dashboard independently rounded category percentages can total 101%; exact USD totals remain correct.
+- Portfolio screenshots remain planned, not supplied. Explicit Host/Origin hardening is a possible follow-up; the unauthenticated API must remain local-only.
+
+No commit, publication, or final release approval is implied by these results.
+
+## Screenshots
+
+No portfolio screenshots are supplied by this documentation task. The following are **planned filenames only**, not existing images or download links:
+
+| Planned filename | Capture to add later |
+| --- | --- |
+| `docs/screenshots/dashboard.png` | Selected-month totals using synthetic records |
+| `docs/screenshots/transactions.png` | Filtered ledger and pagination |
+| `docs/screenshots/budgets.png` | No-budget, under, at-limit and over-budget examples |
+| `docs/screenshots/analytics.png` | Daily/category charts and selected-category details |
+| `docs/screenshots/analytics-table.png` | Readable daily/category values |
+
+For later capture, use a separate disposable database with synthetic records, keep it on loopback, and test 360/768/1440px browser viewports. No demo-data generator is currently provided. Verify images and captions before linking them here; the current `.gitignore` broadly ignores new docs assets, so future screenshot tracking needs a narrow reviewed exception.
+
+## Troubleshooting
+
+| Problem | Check or action |
+| --- | --- |
+| PowerShell blocks `npm.ps1` | Use `npm.cmd`; no execution-policy change is needed. |
+| Unsupported Node/npm version | Check `node --version` and `npm.cmd --version`; use the supported ranges above. |
+| Native SQLite install fails | Check Node compatibility, native prebuilt-binary availability, network access and the driver’s Windows build prerequisites. Do not remove the database as an installation fix. |
+| Port is already in use | Stop the conflicting local process. Vite uses fixed ports. If changing API PORT, update the proxy too. |
+| UI loads but data requests fail | Confirm the API is running and direct `/api/health` is ready. Check PORT/proxy consistency. Preview needs a separately running API. |
+| Health returns 503 or startup fails | Check the configured database path, permissions and migration compatibility. Preserve the file and backup before investigation. |
+| No category options appear | Check API/category availability. Use the category-specific Retry control after the API recovers. |
+| A save succeeded but refresh failed | Retry loading; do not repeat the successful write. Successful recovery clears the obsolete refresh warning while preserving mutation-success feedback. |
+| Browser suite cannot find Chrome | Set CHROME_PATH to an installed Chrome executable. This suite is optional for normal development. |
+| A navigation action fails at the year boundary | Supported months are January 1900 through December 9999; boundary navigation controls are disabled. |
+
+## Further documentation
+
+- [Product requirements](docs/PRD.md) and [user stories](docs/USER_STORIES.md)
+- [Architecture and decisions](docs/ARCHITECTURE.md)
+- [API contract](docs/API.md)
+- [Implementation and release plan](docs/IMPLEMENTATION_PLAN.md)
+- [Verification results](docs/VERIFICATION.md)
