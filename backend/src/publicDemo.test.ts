@@ -27,7 +27,7 @@ beforeAll(async () => { await new Promise<void>(resolve => server.listen(0, '127
 afterAll(async () => { await new Promise<void>(resolve => server.close(() => resolve())); db.close(); });
 
 describe('public demo read boundary', () => {
-  const routes = ['/api/transactions', '/api/transactions/1', '/api/budgets/4/2026-11', '/api/categories',
+  const routes = ['/', '/api/transactions', '/api/transactions/1', '/api/budgets/4/2026-11', '/api/categories',
     '/api/summary?month=2026-11', '/api/health', '/maintenance'];
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'TRACE', 'PROPFIND', 'M-SEARCH']) {
     it.each(routes)(`${method} %s cannot change any SQLite page`, async path => {
@@ -38,7 +38,7 @@ describe('public demo read boundary', () => {
       expect(snapshot()).toBe(before);
     });
   }
-  it.each(['/api/health', '/api/categories', '/api/transactions', '/api/transactions/1', '/api/summary?month=2026-11', '/api/budgets?month=2026-11'])(
+  it.each(['/', '/api/health', '/api/categories', '/api/transactions', '/api/transactions/1', '/api/summary?month=2026-11', '/api/budgets?month=2026-11'])(
     'allows GET and HEAD for %s without writes', async path => {
       const before = snapshot();
       for (const method of ['GET', 'HEAD']) {
@@ -72,12 +72,15 @@ describe('public demo read boundary', () => {
   });
   it.each(['https://evil.example', 'null', origin + '.evil.test', origin + '/', 'http://expense-demo.pages.dev'])(
     'rejects disallowed Origin %s', async value => {
-      const result = await call('GET', '/api/categories', { Origin: value });
-      expect(result.status).toBe(403); expect(result.headers['access-control-allow-origin']).toBeUndefined();
+      for (const path of ['/', '/api/categories']) {
+        const result = await call('GET', path, { Origin: value });
+        expect(result.status).toBe(403); expect(result.headers['access-control-allow-origin']).toBeUndefined();
+      }
     });
   it.each(['evil.example', host + '.evil.test', 'localhost', host + ':443'])(
     'rejects disallowed Host %s even with spoofed forwarding', async value => {
       expect((await call('GET', '/api/health', { Host: value, 'X-Forwarded-Host': host })).status).toBe(403);
+      expect((await call('GET', '/', { Host: value, 'X-Forwarded-Host': host })).status).toBe(403);
     });
   it('handles only approved read preflights', async () => {
     const result = await call('OPTIONS', '/api/transactions', { Origin: origin, 'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'accept, Content-Type' });

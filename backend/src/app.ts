@@ -1,5 +1,5 @@
 import { publicDemoBoundary, type PublicDemoOptions } from './publicDemo.js';
-import express from 'express';
+import express, { type RequestHandler } from 'express';
 import type Database from 'better-sqlite3';
 import { isDatabaseReady } from './db/initialize.js';
 import { errorHandler, notFound } from './middleware/errors.js';
@@ -15,13 +15,15 @@ export function createApp(database?: Database.Database, demo?: PublicDemoOptions
   if (demo) app.use(publicDemoBoundary(demo));
   app.use(express.json({ limit: 16 * 1024 }));
 
-  app.get('/api/health', (_request, response) => {
+  const healthHandler: RequestHandler = (_request, response) => {
     if (!database || !isDatabaseReady(database)) {
       response.status(503).json({ error: { code: 'DATABASE_UNAVAILABLE', message: 'Database is unavailable.' } });
       return;
     }
     response.status(200).json({ data: { status: 'ok', ...(demo ? { publicDemoMode: true, demoMonth: '2026-11' } : {}) } });
-  });
+  };
+  app.get('/api/health', healthHandler);
+  if (demo) app.get('/', healthHandler);
 
   if (database) {
     app.use('/api/categories', createCategoryRouter(database));
