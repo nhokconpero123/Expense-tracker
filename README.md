@@ -1,8 +1,34 @@
+
 # Expense Tracker
 
-A single-user, localhost-only application for recording income and expenses, planning monthly category budgets, and understanding spending. It brings a ledger, monthly cash-flow overview, budgets, charts, and readable data tables into one interface.
+A full-stack personal finance application built with React, TypeScript, Node.js, Express, and SQLite.
 
-**Project status:** T01–T13 features are implemented. T14a audit, T14b documentation, T14c fixes, and T14d real-backend rehearsal are complete. The post-rehearsal Budget Dialog focus fix passes browser regression tests. The test-only Vite WebSocket listener is disabled and repeated runtime listener/API isolation checks pass. The package is **READY for human-reviewed local-only release**; see the latest addendum in [T14d verification](docs/T14D_VERIFICATION.md). Historical proxy-request attribution remains unknown and is not represented as resolved. There is no authentication, multi-user support, or approved public deployment.
+Track income and expenses, manage monthly budgets, and explore spending patterns through interactive dashboards and analytics.
+
+### Live Demo
+
+**[Try the Live Demo](https://expense-tracker.nhokconpero123.workers.dev/)**
+
+**[View Source Code](https://github.com/nhokconpero123/Expense-tracker)**
+
+### Key Features
+
+- Monthly income, expenses, and balance dashboard
+- Transaction management with search and filtering
+- Category-based monthly budgets
+- Interactive charts and spending analytics
+- Responsive interface for desktop and mobile
+- Automated frontend, backend, and browser testing
+
+### Deployment
+
+- **Frontend:** Cloudflare Workers Static Assets
+- **Backend:** Render Web Service
+- **Database:** SQLite
+
+The public demo uses fictional financial data in a read-only, in-memory database. The original local application supports transaction and budget management.
+
+> **Note:** The online demo is read-only. Creating, editing, and deleting records are available only in the local version.
 
 ## Features
 
