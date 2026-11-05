@@ -1,3 +1,4 @@
+import { apiFetch } from './deployment';
 import { isValidMonth } from './date';
 
 export type TransactionType = 'income' | 'expense';
@@ -150,7 +151,7 @@ export async function fetchMonthlySummary(
     init.signal = signal;
   }
 
-  const response = await fetch(`/api/summary?month=${encodeURIComponent(month)}`, init);
+  const response = await apiFetch(`/api/summary?month=${encodeURIComponent(month)}`, init);
 
   if (!response.ok) {
     let code: string | undefined;
@@ -197,7 +198,7 @@ export async function fetchCategories(
     init.signal = signal;
   }
 
-  const response = await fetch(`/api/categories${query}`, init);
+  const response = await apiFetch(`/api/categories${query}`, init);
 
   if (!response.ok) {
     let code: string | undefined;
@@ -244,7 +245,7 @@ export async function fetchTransactions(
     init.signal = signal;
   }
 
-  const response = await fetch(`/api/transactions${query}`, init);
+  const response = await apiFetch(`/api/transactions${query}`, init);
 
   if (!response.ok) {
     let code: string | undefined;
@@ -292,7 +293,7 @@ export async function createTransaction(
     init.signal = signal;
   }
 
-  const response = await fetch('/api/transactions', init);
+  const response = await apiFetch('/api/transactions', init);
 
   if (!response.ok) {
     let code: string | undefined;
@@ -348,7 +349,7 @@ export async function updateTransaction(
     init.signal = signal;
   }
 
-  const response = await fetch(`/api/transactions/${id}`, init);
+  const response = await apiFetch(`/api/transactions/${id}`, init);
 
   if (!response.ok) {
     let code: string | undefined;
@@ -395,7 +396,7 @@ export async function deleteTransaction(
     init.signal = signal;
   }
 
-  const response = await fetch(`/api/transactions/${id}`, init);
+  const response = await apiFetch(`/api/transactions/${id}`, init);
 
   if (response.status === 204) {
     return;

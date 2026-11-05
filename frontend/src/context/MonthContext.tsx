@@ -1,3 +1,4 @@
+import { isPublicDemo } from '../lib/deployment';
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { getCurrentLocalMonth, isValidMonth, shiftMonth } from '../lib/date';
 
@@ -23,7 +24,7 @@ export function MonthProvider({ children, initialMonth }: MonthProviderProps) {
     if (initialMonth && isValidMonth(initialMonth)) {
       return initialMonth;
     }
-    return getCurrentLocalMonth();
+    return isPublicDemo ? '2026-11' : getCurrentLocalMonth();
   });
   const [summaryRevision, setSummaryRevision] = useState<number>(0);
 

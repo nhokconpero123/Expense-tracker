@@ -1,3 +1,4 @@
+import { apiFetch } from './deployment';
 import { ApiClientError, type ApiErrorResponse } from './api';
 import { isValidMonth } from './date';
 
@@ -34,7 +35,7 @@ function isBudgetItem(value: unknown, month: string): value is BudgetItem {
 }
 
 async function request(path: string, init: RequestInit): Promise<Response> {
-  const response = await fetch(path, init);
+  const response = await apiFetch(path, init);
   if (!response.ok) {
     let error: ApiErrorResponse['error'] | undefined;
     try { error = ((await response.json()) as ApiErrorResponse)?.error; } catch { /* Use the HTTP fallback. */ }

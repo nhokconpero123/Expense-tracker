@@ -153,7 +153,7 @@ Copy the root `.env.example` to **`backend/.env`**, not the repository root. Bac
 | `PORT` | `3001`; integer from 1 to 65535. |
 | `DATABASE_PATH` | `backend/data/expense-tracker.sqlite`; configured relative values resolve from `backend/`. |
 
-There is no application HOST override or configurable frontend API-origin variable. If PORT changes, update the proxy target in `frontend/vite.config.ts` and use that API port in local URLs. Never put secrets into `VITE_*` variables: Vite exposes those values to browser code. The browser test runner separately accepts `CHROME_PATH` for a non-default Chrome installation; this is test tooling, not application configuration.
+Local mode has no arbitrary HOST override. The separately opt-in hosted read-only mode and VITE_API_BASE_URL are described in [DEPLOYMENT.md](DEPLOYMENT.md); leave them unset for the original local workflow. If PORT changes, update the proxy target in `frontend/vite.config.ts` and use that API port in local URLs. Never put secrets into `VITE_*` variables: Vite exposes those values to browser code. The browser test runner separately accepts `CHROME_PATH` for a non-default Chrome installation; this is test tooling, not application configuration.
 
 ## API and reporting behavior
 
@@ -207,7 +207,7 @@ The MVP intentionally excludes authentication, multiple users, bank connections,
 
 T14c fixed the audited transaction focus, category Retry, stale rows/feedback, and month-boundary findings, with mounted interaction coverage. The later Budget Dialog focus-cycle blocker is also fixed: native modality is preserved, forward/reverse boundaries wrap locally, pending mutations block dismissal, and connected triggers or a stable heading receive restored focus.
 
-Current verification: **399 frontend + 962 backend = 1,361 Vitest cases**; **44 Chrome checks** (42 interaction cases plus API and listener isolation checks). Typecheck and build pass. [T14d verification](docs/T14D_VERIFICATION.md) preserves the real-backend workflow, restart persistence, responsive checks, and 10,000-row measurements; those backend/query paths are unchanged.
+Local MVP acceptance baseline: **399 frontend + 962 backend = 1,361 Vitest cases**; **44 Chrome checks** (42 interaction cases plus API and listener isolation checks). Typecheck and build pass. [T14d verification](docs/T14D_VERIFICATION.md) preserves the real-backend workflow, restart persistence, responsive checks, and 10,000-row measurements; those backend/query paths are unchanged.
 
 - Historical uncertainty: the caller of three earlier summary proxy attempts remains **NOT VERIFIED**. Current isolation passes repeated normal and negative checks; this mitigates the current risk without establishing the historical source.
 - Full screen-reader speech, VS Code embedded-preview acceptance, fresh-install reproducibility, and backup restoration remain unverified.
@@ -260,3 +260,8 @@ Captured at a 1440-pixel desktop width; full-page images preserve the final rows
 - [API contract](docs/API.md)
 - [Implementation and release plan](docs/IMPLEMENTATION_PLAN.md)
 - [Verification results](docs/VERIFICATION.md)
+
+
+## Prepared read-only public demo (not deployed)
+
+The local MVP remains writable on loopback by default. A separately opt-in public-demo mode now uses fictional November 2026 data in fresh query-only in-memory SQLite, blocks HTTP mutations server-side, and provides read-only frontend controls. Hosting preparation does not authorize publication. See [DEPLOYMENT.md](DEPLOYMENT.md) for the exact Render/Cloudflare settings, explicit flags, security boundaries and required post-deployment acceptance checks. Never expose the original local writable API.

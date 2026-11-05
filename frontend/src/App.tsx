@@ -1,3 +1,4 @@
+import { isPublicDemo } from './lib/deployment';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navbar, type AppPage } from './components/Navbar';
 import { MonthProvider } from './context/MonthContext';
@@ -53,6 +54,9 @@ export default function App() {
       <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100 antialiased overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
         <Navbar activePage={activePage} onNavigate={handleNavigate} />
 
+        {isPublicDemo && <p role="note" className="border-b border-emerald-800 bg-emerald-950 px-4 py-3 text-center text-sm text-emerald-100">
+          Read-only portfolio demo. All November 2026 data is fictional. Editing is disabled.
+        </p>}
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           <Suspense fallback={<p role="status">Loading analytics...</p>}>
             {activePage === 'dashboard' ? <Dashboard /> : activePage === 'budgets' ? <Budgets /> :

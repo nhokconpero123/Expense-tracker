@@ -1,20 +1,18 @@
+import { serverConfiguration, protectDemoTransports } from './publicDemo.js';
+import { createPublicDemoDatabase } from './db/publicDemo.js';
 import { createApp } from './app.js';
 import { openDatabase } from './db/connection.js';
 import { initializeDatabase } from './db/initialize.js';
 
-const portText = process.env['PORT'] ?? '3001';
-const port = Number(portText);
-if (!/^\d+$/.test(portText) || !Number.isInteger(port) || port < 1 || port > 65535) {
-  throw new Error('PORT must be an integer between 1 and 65535');
-}
-
-const host = '127.0.0.1';
+const { port, host, demo } = serverConfiguration(process.env);
 try {
-  const db = openDatabase();
-  try { initializeDatabase(db); } catch (error) { db.close(); throw error; }
-  const server = createApp(db).listen(port, host, () => {
+  const db = demo ? createPublicDemoDatabase() : openDatabase();
+  try { if (!demo) initializeDatabase(db); } catch (error) { db.close(); throw error; }
+  const server = createApp(db, demo).listen(port, host, () => {
     console.log(`Expense Tracker API listening at http://${host}:${port}`);
   });
+
+  if (demo) protectDemoTransports(server);
 
   server.on('error', (error: NodeJS.ErrnoException) => {
     db.close();

@@ -1,3 +1,4 @@
+import { isPublicDemo } from '../lib/deployment';
 import type { Transaction, TransactionListMeta } from '../lib/api';
 import { formatDateDisplay } from '../lib/date';
 import { formatCentsToUsd } from '../lib/money';
@@ -84,7 +85,7 @@ export function TransactionTable({
           ) : (
             <button
               type="button"
-              onClick={onOpenAddModal}
+              disabled={isPublicDemo} onClick={onOpenAddModal}
               className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -180,6 +181,7 @@ export function TransactionTable({
                       <div className="flex items-center justify-end gap-1">
                         <button
                           type="button"
+                          disabled={isPublicDemo}
                           onClick={(e) => onEditTransaction?.(tx, e.currentTarget)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 transition-colors"
                           aria-label={editLabel}
@@ -201,6 +203,7 @@ export function TransactionTable({
                         </button>
                         <button
                           type="button"
+                          disabled={isPublicDemo}
                           onClick={(e) => onDeleteTransaction?.(tx, e.currentTarget)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-950/50 hover:text-rose-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 transition-colors"
                           aria-label={deleteLabel}
