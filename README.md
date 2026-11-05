@@ -26,9 +26,10 @@ Track income and expenses, manage monthly budgets, and explore spending patterns
 - **Backend:** Render Web Service
 - **Database:** SQLite
 
-The interactive portfolio build uses fictional financial data saved in browser-local storage. Visitors can manage transactions and budgets without sending writes to Render. The Render API remains read-only with in-memory SQLite; the original local application continues using writable persistent SQLite.
+The interactive portfolio build uses fictional financial data saved in browser-local storage. Visitors can manage transactions and budgets without sending writes to Render. The Render API remains read-only with in-memory    SQLite; the original local application continues using writable persistent SQLite.
 
-> **Review status:** Browser-local interactivity is implemented in this checkout and has not been deployed by this change. The currently published version may still show read-only controls.
+> **Live deployment:** The interactive portfolio demo is deployed on Cloudflare Workers. Visitors can create, edit, and delete fictional transactions and budgets, with changes stored locally in their browser. Reset Demo restores the original sample data. The Render API remains read-only.
+
 
 ## Features
 
