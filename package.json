@@ -2,11 +2,13 @@
   "name": "expense-tracker",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@11.17.0",
   "workspaces": ["frontend", "backend"],
   "engines": { "node": ">=24.19.0 <25", "npm": ">=11 <12" },
   "scripts": {
     "dev": "concurrently --kill-others -n api,web \"npm run dev --workspace backend\" \"npm run dev --workspace frontend\"",
     "build": "npm run build --workspaces",
+    "build:cloudflare": "npm run build --workspace frontend && node scripts/verify-worker-assets.mjs",
     "typecheck": "npm run typecheck --workspaces",
     "test": "npm run test --workspaces",
     "start": "npm run start --workspace backend"

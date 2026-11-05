@@ -1,6 +1,6 @@
 # Public read-only portfolio demo preparation
 
-Status: implemented for review; **nothing has been deployed**. This is the approved preparation of architecture option A, separate from the original writable local MVP. Actual resource creation, publication, custom domains and paid plans require a later human decision. Never deploy the original writable configuration publicly.
+Status: Workers Static Assets preparation for review; **this task deploys nothing**. The supplied existing Render API target is https://expense-tracker-lpkl.onrender.com. This is the approved preparation of architecture option A, separate from the original writable local MVP. Actual resource creation, publication, custom domains and paid plans require a later human decision. Never deploy the original writable configuration publicly.
 
 ## Security and storage model
 
@@ -14,7 +14,7 @@ Only the exact configured HTTPS browser Origin receives CORS permission; other s
 
 ## Required configuration
 
-Example hostnames below are placeholders, not existing deployments. Replace both with the exact assigned names before launching. Flags accept only the literal strings true/false; invalid settings fail startup.
+The Render hostname below is the supplied backend target. The example-account Workers hostname is a placeholder: replace it with the exact assigned production workers.dev origin before publishing. Flags accept only the literal strings true/false; invalid settings fail startup.
 
 | Location | Variable | Value / behavior |
 | --- | --- | --- |
@@ -22,15 +22,15 @@ Example hostnames below are placeholders, not existing deployments. Replace both
 | Render | NODE_ENV | production |
 | Render | PUBLIC_DEMO_MODE | true (default false) |
 | Render | HOSTED_DEPLOYMENT | true (default false); requires public mode |
-| Render | PUBLIC_DEMO_ORIGIN | https://expense-tracker-demo.pages.dev, exact origin without slash/path or wildcard |
-| Render | PUBLIC_DEMO_HOST | expense-tracker-demo.onrender.com, exact lowercase hostname without scheme/port/path |
+| Render | PUBLIC_DEMO_ORIGIN | https://expense-tracker.example-account.workers.dev, exact origin without slash/path or wildcard |
+| Render | PUBLIC_DEMO_HOST | expense-tracker-lpkl.onrender.com, exact lowercase hostname without scheme/port/path |
 | Render | PORT | Supplied by Render, normally 10000; application accepts 1-65535 |
-| Pages | NODE_VERSION | 24.19.0 |
-| Pages | SKIP_DEPENDENCY_INSTALL | 1; build command performs the workspace install |
-| Pages | VITE_PUBLIC_DEMO_MODE | true; shows fictional/read-only notice, disables editing, defaults month to November 2026 |
-| Pages | VITE_API_BASE_URL | https://expense-tracker-demo.onrender.com, origin only; /api is appended by clients |
+| Workers build | NODE_VERSION | 24.19.0 |
+| Workers build | SKIP_DEPENDENCY_INSTALL | 1; build command performs the workspace install |
+| Workers build | VITE_PUBLIC_DEMO_MODE | true; shows fictional/read-only notice, disables editing, defaults month to November 2026 |
+| Workers build | VITE_API_BASE_URL | https://expense-tracker-lpkl.onrender.com, origin only; /api is appended by clients |
 
-Do not configure DATABASE_PATH for Render; public mode ignores even a mistakenly supplied value. No account keys or application secrets are needed by this unauthenticated demo. VITE_* settings are compiled into publicly downloadable JavaScript; never put secrets in them. Frontend settings do not secure the backend: keep backend PUBLIC_DEMO_MODE=true regardless of UI settings. A mismatched frontend flag can expose ineffective editing controls, so smoke-test the actual build. Changing Vite settings requires rebuilding Pages.
+Do not configure DATABASE_PATH for Render; public mode ignores even a mistakenly supplied value. No account keys or application secrets are needed by this unauthenticated demo. VITE_* settings are compiled into publicly downloadable JavaScript; never put secrets in them. These are build variables, not Worker runtime bindings or wrangler.json vars. Frontend settings do not secure the backend: keep backend PUBLIC_DEMO_MODE=true regardless of UI settings. A mismatched frontend flag can expose ineffective editing controls, so smoke-test the actual build. Changing Vite settings requires rebuilding the frontend.
 
 With no hosted flag the server binds 127.0.0.1. Only HOSTED_DEPLOYMENT=true with valid public-demo configuration permits 0.0.0.0. NODE_ENV=production or Render's PORT alone cannot change that boundary. Local frontend requests stay relative /api when VITE_API_BASE_URL is absent; the existing Vite loopback proxy remains unchanged.
 
@@ -54,26 +54,58 @@ The start script runs Node on backend/dist/server.js; it does not run tsx, TypeS
 
 Render requires 0.0.0.0 binding for public Web Services and provides PORT; this is enabled only by the guarded hosted setting. Its HTTP health checks use the onrender.com hostname when no custom domain is configured. Do not add custom domains during initial acceptance: Render can use a verified custom domain for health Host, which would require reviewing/updating PUBLIC_DEMO_HOST and the frontend API origin together. See [Render Web Services](https://render.com/docs/web-services) and [health checks](https://render.com/docs/health-checks).
 
-## Cloudflare Pages configuration (after approval)
+## Cloudflare Workers Git integration with Static Assets
 
-Use Pages Git integration, not a Workers deployment. Repository root: blank/root. Framework preset: React (Vite), with these explicit overrides:
+This is **Workers Builds**, not Cloudflare Pages. Cloudflare hosts only the existing Vite frontend. Express, SQLite, all /api routes and the synthetic database stay on Render. There is no Cloudflare adapter, Worker main script, Node compatibility flag, D1/R2/KV binding, API proxy, custom domain or paid service in wrangler.json.
 
-Build Command:
+After review, connect https://github.com/nhokconpero123/Expense-tracker using Workers Git integration. Worker name must match wrangler.json: `expense-tracker`. Use the assigned workers.dev address; no custom domain is required. Configure Settings > Build as follows:
 
-```sh
-npm ci --include=dev --workspace frontend --include-workspace-root && npm run build --workspace frontend
+| Dashboard setting | Exact value |
+| --- | --- |
+| Root Path / Root directory | Repository root: `/` (leave blank if the dashboard displays blank for root), not frontend/ |
+| Build Command | `npm ci --include=dev --workspace frontend --include-workspace-root && npm run build:cloudflare` |
+| Deploy Command | `npx --yes wrangler@4.157.0 deploy --config wrangler.json` |
+| Production branch | Select the reviewed branch manually; do not enable unreviewed automatic publication |
+| Preview builds | Disabled initially; distinct preview origins are not implicitly trusted by Render |
+
+Build variables and secrets (not runtime Variables & Secrets):
+
+```text
+NODE_VERSION=24.19.0
+SKIP_DEPENDENCY_INSTALL=1
+VITE_PUBLIC_DEMO_MODE=true
+VITE_API_BASE_URL=https://expense-tracker-lpkl.onrender.com
 ```
 
-Build Output Directory: `frontend/dist` (relative to repository root). No Functions directory or server process is needed. Set the Pages variables above for the production environment. Do not automatically enable preview builds against the production API: their distinct origins are deliberately not allowed. Use a separately reviewed backend/origin pair if previews are later required; never change CORS to a wildcard to accommodate them.
+The root packageManager field pins npm 11.17.0 because engines.npm alone does not select Workers CI's npm version. SKIP_DEPENDENCY_INSTALL disables the automatic install; the explicit npm ci command uses the root lockfile and selects frontend plus root tooling. No backend build or SQLite native runtime is needed by this frontend-only Cloudflare command. The original root npm run build still compiles both workspaces for local/Render verification; even if that command is used, Wrangler's asset directory remains frontend/dist only.
 
-Navigation uses #dashboard, #transactions, #budgets and #analytics, so normal navigation/reloads request the same index document. Cloudflare Pages also provides SPA fallback when no top-level 404.html exists; none is supplied by this application. No URL-route rewrite, router replacement or backend asset serving is necessary. See [build configuration](https://developers.cloudflare.com/pages/configuration/build-configuration/), [build-image overrides](https://developers.cloudflare.com/pages/configuration/build-image/) and [serving Pages](https://developers.cloudflare.com/pages/configuration/serving-pages/).
+Root build:cloudflare builds the frontend, then runs scripts/verify-worker-assets.mjs. It requires the explicit public flag and an HTTPS API origin, checks those values exist in the compiled frontend, checks index references, and rejects symlinks and unexpected source/database/key files in the asset directory. It also rejects executable Worker configuration or service bindings. Vite configuration and local npm run dev/build/start behavior are unchanged. There is no deploy script that runs automatically as part of a build.
+
+wrangler.json contains only:
+
+```json
+{
+  "name": "expense-tracker",
+  "compatibility_date": "2026-11-04",
+  "assets": {
+    "directory": "./frontend/dist",
+    "not_found_handling": "single-page-application"
+  }
+}
+```
+
+There is no Pages Build Output Directory field: assets.directory is the upload boundary. Neither repository root, backend/dist, SQLite files nor node_modules is an upload directory. There is no main script for Wrangler to bundle or execute; the JavaScript in frontend/dist is browser code. SPA fallback serves index.html for unmatched navigation requests; current #dashboard/#transactions/#budgets/#analytics routing continues to load the root document. Do not depend on SPA fallback for API requests: all production API requests must use the configured absolute Render origin. Static assets cannot execute Express or SQLite.
+
+Wrangler is not added as a project dependency or adapter; the explicit deploy command pins the CLI version. It may download that CLI into npm's tool cache in CI. Cloudflare Git integration supplies deployment authentication; never put a Cloudflare token in VITE_* variables or commit it. No [build] custom command is added to Wrangler because Workers Builds uses its dashboard Build Command separately.
+
+Official references: [Workers build settings](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [build image/tool selection](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/), [Static Assets](https://developers.cloudflare.com/workers/static-assets/), and [SPA routing](https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/).
 
 ## Deployment order and blockers
 
 1. Review this diff and tests; independently verify that Git/build contents contain no SQLite files, .env secrets or personal records. Actual provider builds, TLS and proxy behavior remain unverified until an approved deployment.
-2. Choose/reserve the intended Render service name and Pages project name through a separately approved action. Record exact assigned hostnames; the example names are not a guarantee of availability.
-3. Configure all backend flags/origin/host first. After explicit deployment approval, build/start Render and verify the health response declares publicDemoMode true. Stop immediately if it does not. Do not publish a writable fallback.
-4. Configure Pages with the confirmed backend HTTPS origin and public UI flag, then build/publish only after approval. Check CORS, console/network output and all pages using the actual Pages origin.
+2. Confirm the Workers name expense-tracker and exact assigned production workers.dev origin. Do not reuse the old Pages origin.
+3. On the existing Render service, retain PUBLIC_DEMO_MODE=true, HOSTED_DEPLOYMENT=true and PUBLIC_DEMO_HOST=expense-tracker-lpkl.onrender.com. Set PUBLIC_DEMO_ORIGIN to that exact Workers origin. Do not change the API implementation, storage or host allowlist to a wildcard. Verify health declares publicDemoMode true; this task does not change live Render settings.
+4. Configure the Workers build variables above. Only after approval, run the configured Cloudflare build/deploy and check CORS, read-only controls and all hash routes at the actual workers.dev URL. No resource or deployment has been created by this preparation.
 5. Complete the checklist below before sharing the URL. Avoid automatic publication from an unreviewed branch. No command in this document has been used to create cloud resources during preparation.
 
 ## Browser and direct-request smoke checklist
@@ -81,8 +113,8 @@ Navigation uses #dashboard, #transactions, #budgets and #analytics, so normal na
 - Confirm HTTPS on both origins and that /api/health returns the read-only demo indicator.
 - Load all four hash routes, reload each, and confirm November 2026 defaults; compare $3,950 income, $2,155 expenses and $1,795 balance. Confirm readable chart tables and budget states.
 - Confirm the read-only fictional-data banner; Add, Edit, Delete, Set and Remove controls must be disabled. Month selection, filters, pagination, category selection and refresh must still work.
-- Inspect Network: every API URL must use the chosen Render HTTPS origin. No localhost, credentials, mixed content, failed CORS or private values may appear.
-- From the exact Pages origin, GET/HEAD and an OPTIONS preflight requesting GET must succeed. An unapproved Origin must receive 403 without Allow-Origin; an approved-origin write preflight must receive 403. Preview subdomains are not implicitly trusted.
+- Inspect Network: every API URL must use the configured Render HTTPS origin. No localhost, credentials, mixed content, failed CORS or private values may appear.
+- From the exact Workers origin, GET/HEAD and an OPTIONS preflight requesting GET must succeed. An unapproved Origin must receive 403 without Allow-Origin; an approved-origin write preflight must receive 403. Preview subdomains are not implicitly trusted.
 - Using a direct client (UI bypass), send POST /api/transactions, PUT/DELETE /api/transactions/1, PUT/DELETE /api/budgets/4/2026-11, PATCH, TRACE and an unknown write path: expect 403. Record transaction/budget/summary responses before and after; they must remain unchanged. Do not send these probes to any personal/local database service.
 - Test CONNECT/upgrade rejection in an approved environment, wrong Host, spoofed forwarded Host, malformed JSON and invalid queries. Errors must not expose SQL, paths, stack traces, notes or environment values.
 - Restart the demo instance: the fictional dataset must be recreated without duplicates, while no user/database volume is read or restored. Recheck configuration after any rollback.
@@ -90,15 +122,24 @@ Navigation uses #dashboard, #transactions, #budgets and #analytics, so normal na
 
 ## Local verification (no public listener)
 
-Run npm.cmd run typecheck, npm.cmd run build, npm.cmd test, npm.cmd run test:browser --workspace frontend and git diff --check from the repository root. The original Chrome regression suite tests local writable behavior with intercepted fixtures, not a real Cloudflare/Render deployment. Backend public-demo tests bind ephemeral loopback sockets, compare serialized in-memory SQLite before/after blocked requests, cover unusual methods and preflight rules, and verify query-only protection. Frontend tests check HTTPS URL selection, local defaults and disabled read-only presentation. Hosted binding is configuration-tested without opening 0.0.0.0 during this work.
+Run npm.cmd run typecheck, npm.cmd run build, npm.cmd test, npm.cmd run test:browser --workspace frontend and git diff --check from the repository root. The original Chrome regression suite tests local writable behavior with intercepted fixtures, not a real Workers/Render deployment. Backend public-demo tests bind ephemeral loopback sockets, compare serialized in-memory SQLite before/after blocked requests, cover unusual methods and preflight rules, and verify query-only protection. Frontend tests check HTTPS URL selection, local defaults and disabled read-only presentation. Hosted binding is configuration-tested without opening 0.0.0.0 during this work.
 
 ## Free-tier and security limitations
 
-Render Free Web Services spin down after 15 minutes idle and may take about a minute to wake; local filesystem changes are lost on restart/redeploy/spin-down. This demo intentionally regenerates memory data, so no persistence is promised. Free services have usage/bandwidth/build limits and may be suspended when allowances are exhausted; review current dashboards and [Render Free documentation](https://render.com/docs/free). Cloudflare Pages also has build/project limits; review [Pages limits](https://developers.cloudflare.com/pages/platform/limits/) before publishing. Availability and quotas can change; no paid upgrade is authorized here.
+Render Free Web Services spin down after 15 minutes idle and may take about a minute to wake; local filesystem changes are lost on restart/redeploy/spin-down. This demo intentionally regenerates memory data, so no persistence is promised. Free services have usage/bandwidth/build limits and may be suspended when allowances are exhausted; review current dashboards and [Render Free documentation](https://render.com/docs/free). Workers Builds and Static Assets also have limits; review [Workers build limits](https://developers.cloudflare.com/workers/ci-cd/builds/limits-and-pricing/) before publishing. Availability and quotas can change; no paid upgrade is authorized here.
 
 Read-only mode does not solve denial of service, scraping, dependency vulnerabilities, provider compromise or all transport risks. There is no application authentication, per-user isolation, application rate limiter or complete CSP/WAF policy. Use provider/edge rate limits and budget controls appropriate to a public demo, monitor sanitized logs, and keep dependencies patched. Non-browser readers are intentionally allowed to obtain fictional data. Treat any real-data, authenticated, write-enabled, custom-domain or persistent-storage extension as a separate security review. Never reuse this configuration to publish personal financial storage.
 
 
 ## Preparation verification record
 
-Local checks on November 4, 2026: frontend 413 and backend 1052 Vitest cases passed (1465 total), typecheck/build passed, and all 44 existing Chrome cases passed. A separate smoke check ran the actual compiled backend twice in public mode with hosted binding disabled on ephemeral 127.0.0.1 ports 59577 and 59583: both returned health 200, rejected POST with 403, and recreated exactly 13 transactions with expense total 215500 cents. A deliberately unused DATABASE_PATH file was not created, and development database metadata was unchanged. Both owned processes exited cleanly. These are local preparation results, not actual Render/Pages or cross-origin HTTPS browser acceptance.
+Local checks on November 4, 2026: frontend 413 and backend 1052 Vitest cases passed (1465 total), typecheck/build passed, and all 44 existing Chrome cases passed. A separate smoke check ran the actual compiled backend twice in public mode with hosted binding disabled on ephemeral 127.0.0.1 ports 59577 and 59583: both returned health 200, rejected POST with 403, and recreated exactly 13 transactions with expense total 215500 cents. A deliberately unused DATABASE_PATH file was not created, and development database metadata was unchanged. Both owned processes exited cleanly. These are local preparation results, not actual provider or cross-origin HTTPS browser acceptance.
+
+
+## Workers Static Assets preparation verification
+
+The Workers-specific preparation passed root typecheck, root npm run build (both workspaces), all 1465 Vitest cases (413 frontend, 1052 backend), and 44 Chrome regression cases. npm run build:cloudflare also passed with VITE_PUBLIC_DEMO_MODE=true and VITE_API_BASE_URL=https://expense-tracker-lpkl.onrender.com supplied only as process build variables. The static verifier found exactly index.html, two browser JavaScript bundles and CSS under frontend/dist, with valid references and no symlinks, backend files or databases.
+
+Wrangler 4.157.0 deploy **--dry-run** --config wrangler.json completed with exit 0, reported no bindings, and exited without deployment. Only CLI tooling was downloaded to npm's cache; no project dependency, adapter, lockfile or provider resource was added. The dry run validated configuration/bundling locally; it did not exercise Cloudflare's deployed asset routing or HTTPS/CORS. No Wrangler login or real deploy command was executed. The existing Render health endpoint could not be verified through the available web tool, so its live publicDemoMode and Origin settings remain unverified.
+
+Remaining acceptance steps: configure the exact assigned production Workers origin in Render, confirm the Worker/dashboard name matches expense-tracker, verify public read-only health and CORS, then obtain explicit deployment approval and run real deployed browser smoke tests. Provider CI dependency installation and publishing were not executed here. Do not treat a successful local build/dry run as public-release approval.

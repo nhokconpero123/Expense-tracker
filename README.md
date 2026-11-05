@@ -264,4 +264,7 @@ Captured at a 1440-pixel desktop width; full-page images preserve the final rows
 
 ## Prepared read-only public demo (not deployed)
 
-The local MVP remains writable on loopback by default. A separately opt-in public-demo mode now uses fictional November 2026 data in fresh query-only in-memory SQLite, blocks HTTP mutations server-side, and provides read-only frontend controls. Hosting preparation does not authorize publication. See [DEPLOYMENT.md](DEPLOYMENT.md) for the exact Render/Cloudflare settings, explicit flags, security boundaries and required post-deployment acceptance checks. Never expose the original local writable API.
+The local MVP remains writable on loopback by default. A separately opt-in public-demo mode now uses fictional November 2026 data in fresh query-only in-memory SQLite, blocks HTTP mutations server-side, and provides read-only frontend controls. Hosting preparation does not authorize publication. See [DEPLOYMENT.md](DEPLOYMENT.md) for the exact Render/Cloudflare Workers Static Assets settings, explicit flags, security boundaries and required post-deployment acceptance checks. Never expose the original local writable API.
+
+
+Cloudflare Workers Git builds use `npm run build:cloudflare` from the repository root after installing frontend/root workspace dependencies. The root `wrangler.json` uploads only `frontend/dist` with SPA navigation fallback; it contains no Express entry point or SQLite binding. Set the public-demo flag and Render API origin as Cloudflare build variables, and follow the exact dashboard commands and CORS prerequisite in [DEPLOYMENT.md](DEPLOYMENT.md). Build alone does not deploy.
