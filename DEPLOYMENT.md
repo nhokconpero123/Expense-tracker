@@ -1,4 +1,4 @@
-# Public read-only portfolio demo preparation
+# Interactive browser demo and read-only API deployment
 
 Status: Workers Static Assets preparation for review; **this task deploys nothing**. The supplied existing Render API target is https://expense-tracker-lpkl.onrender.com. This is the approved preparation of architecture option A, separate from the original writable local MVP. Actual resource creation, publication, custom domains and paid plans require a later human decision. Never deploy the original writable configuration publicly.
 
@@ -27,10 +27,10 @@ The Render hostname below is the supplied backend target. The example-account Wo
 | Render | PORT | Supplied by Render, normally 10000; application accepts 1-65535 |
 | Workers build | NODE_VERSION | 24.19.0 |
 | Workers build | SKIP_DEPENDENCY_INSTALL | 1; build command performs the workspace install |
-| Workers build | VITE_PUBLIC_DEMO_MODE | true; shows fictional/read-only notice, disables editing, defaults month to November 2026 |
+| Workers build | VITE_PUBLIC_DEMO_MODE | true; enables browser-local CRUD, storage/privacy notice and Reset Demo; defaults month to November 2026 |
 | Workers build | VITE_API_BASE_URL | https://expense-tracker-lpkl.onrender.com, origin only; /api is appended by clients |
 
-Do not configure DATABASE_PATH for Render; public mode ignores even a mistakenly supplied value. No account keys or application secrets are needed by this unauthenticated demo. VITE_* settings are compiled into publicly downloadable JavaScript; never put secrets in them. These are build variables, not Worker runtime bindings or wrangler.json vars. Frontend settings do not secure the backend: keep backend PUBLIC_DEMO_MODE=true regardless of UI settings. A mismatched frontend flag can expose ineffective editing controls, so smoke-test the actual build. Changing Vite settings requires rebuilding the frontend.
+Do not configure DATABASE_PATH for Render; public mode ignores even a mistakenly supplied value. No account keys or application secrets are needed by this unauthenticated demo. VITE_* settings are compiled into publicly downloadable JavaScript; never put secrets in them. These are build variables, not Worker runtime bindings or wrangler.json vars. Frontend settings do not secure the backend: keep backend PUBLIC_DEMO_MODE=true regardless of UI settings. A missing frontend flag selects the normal API transport, so smoke-test the actual build; public backend writes must remain blocked. Changing Vite settings requires rebuilding the frontend.
 
 With no hosted flag the server binds 127.0.0.1. Only HOSTED_DEPLOYMENT=true with valid public-demo configuration permits 0.0.0.0. NODE_ENV=production or Render's PORT alone cannot change that boundary. Local frontend requests stay relative /api when VITE_API_BASE_URL is absent; the existing Vite loopback proxy remains unchanged.
 
@@ -105,14 +105,14 @@ Official references: [Workers build settings](https://developers.cloudflare.com/
 1. Review this diff and tests; independently verify that Git/build contents contain no SQLite files, .env secrets or personal records. Actual provider builds, TLS and proxy behavior remain unverified until an approved deployment.
 2. Confirm the Workers name expense-tracker and exact assigned production workers.dev origin. Do not reuse the old Pages origin.
 3. On the existing Render service, retain PUBLIC_DEMO_MODE=true, HOSTED_DEPLOYMENT=true and PUBLIC_DEMO_HOST=expense-tracker-lpkl.onrender.com. Set PUBLIC_DEMO_ORIGIN to that exact Workers origin. Do not change the API implementation, storage or host allowlist to a wildcard. Verify health declares publicDemoMode true; this task does not change live Render settings.
-4. Configure the Workers build variables above. Only after approval, run the configured Cloudflare build/deploy and check CORS, read-only controls and all hash routes at the actual workers.dev URL. No resource or deployment has been created by this preparation.
+4. Configure the Workers build variables above. Only after approval, run the configured Cloudflare build/deploy and check API CORS independently, interactive browser-local controls and all hash routes at the actual workers.dev URL. No resource or deployment has been created by this preparation.
 5. Complete the checklist below before sharing the URL. Avoid automatic publication from an unreviewed branch. No command in this document has been used to create cloud resources during preparation.
 
 ## Browser and direct-request smoke checklist
 
 - Confirm HTTPS on both origins and that /api/health returns the read-only demo indicator.
 - Load all four hash routes, reload each, and confirm November 2026 defaults; compare $3,950 income, $2,155 expenses and $1,795 balance. Confirm readable chart tables and budget states.
-- Confirm the read-only fictional-data banner; Add, Edit, Delete, Set and Remove controls must be disabled. Month selection, filters, pagination, category selection and refresh must still work.
+- Confirm the interactive fictional-data banner and storage/privacy disclosure. Add, Edit, Delete, Set and Remove must change browser-local state only. Reload must preserve it; Reset Demo must confirm before restoring all fictional data. Month selection, filters, pagination, category selection and refresh must still work.
 - Inspect Network: every API URL must use the configured Render HTTPS origin. No localhost, credentials, mixed content, failed CORS or private values may appear.
 - From the exact Workers origin, GET/HEAD and an OPTIONS preflight requesting GET must succeed. An unapproved Origin must receive 403 without Allow-Origin; an approved-origin write preflight must receive 403. Preview subdomains are not implicitly trusted.
 - Using a direct client (UI bypass), send POST /api/transactions, PUT/DELETE /api/transactions/1, PUT/DELETE /api/budgets/4/2026-11, PATCH, TRACE and an unknown write path: expect 403. Record transaction/budget/summary responses before and after; they must remain unchanged. Do not send these probes to any personal/local database service.
@@ -122,7 +122,7 @@ Official references: [Workers build settings](https://developers.cloudflare.com/
 
 ## Local verification (no public listener)
 
-Run npm.cmd run typecheck, npm.cmd run build, npm.cmd test, npm.cmd run test:browser --workspace frontend and git diff --check from the repository root. The original Chrome regression suite tests local writable behavior with intercepted fixtures, not a real Workers/Render deployment. Backend public-demo tests bind ephemeral loopback sockets, compare serialized in-memory SQLite before/after blocked requests, cover unusual methods and preflight rules, and verify query-only protection. Frontend tests check HTTPS URL selection, local defaults and disabled read-only presentation. Hosted binding is configuration-tested without opening 0.0.0.0 during this work.
+Run npm.cmd run typecheck, npm.cmd run build, npm.cmd test, npm.cmd run test:browser --workspace frontend and git diff --check from the repository root. The original Chrome regression suite tests local writable behavior with intercepted fixtures, not a real Workers/Render deployment. Backend public-demo tests bind ephemeral loopback sockets, compare serialized in-memory SQLite before/after blocked requests, cover unusual methods and preflight rules, and verify query-only protection. Frontend tests check HTTPS URL selection, local defaults, browser-local CRUD, persistence/recovery and enabled interactive presentation. Also run npm.cmd run test:browser:demo --workspace frontend for real-Chrome CRUD, reload, analytics, reset and multi-tab checks with Render blocked. Hosted binding is configuration-tested without opening 0.0.0.0 during this work.
 
 ## Free-tier and security limitations
 
@@ -143,3 +143,17 @@ The Workers-specific preparation passed root typecheck, root npm run build (both
 Wrangler 4.157.0 deploy **--dry-run** --config wrangler.json completed with exit 0, reported no bindings, and exited without deployment. Only CLI tooling was downloaded to npm's cache; no project dependency, adapter, lockfile or provider resource was added. The dry run validated configuration/bundling locally; it did not exercise Cloudflare's deployed asset routing or HTTPS/CORS. No Wrangler login or real deploy command was executed. The existing Render health endpoint could not be verified through the available web tool, so its live publicDemoMode and Origin settings remain unverified.
 
 Remaining acceptance steps: configure the exact assigned production Workers origin in Render, confirm the Worker/dashboard name matches expense-tracker, verify public read-only health and CORS, then obtain explicit deployment approval and run real deployed browser smoke tests. Provider CI dependency installation and publishing were not executed here. Do not treat a successful local build/dry run as public-release approval.
+
+## Browser-local interactive candidate (not deployed by this change)
+
+VITE_PUBLIC_DEMO_MODE=true now selects a browser-local repository beneath the existing API clients. All categories, transaction CRUD, list filtering/pagination, budgets and derived financial views use that repository. The bundled, validated version-1 fictional fixture initializes without contacting Render. Render restarts cannot overwrite browser changes. The default local mode still sends requests through the existing Express/Vite proxy and persistent SQLite workflow.
+
+No backend configuration, SQLite settings, seed definitions, CORS/Host allowlists, hosted bindings or HTTP write guards change. Keep PUBLIC_DEMO_MODE=true and HOSTED_DEPLOYMENT=true on the public Render service. The existing API origin remains required by the Cloudflare build verifier; browser-local demo requests do not use it. No new deployment variables, Worker bindings, services or paid dependencies are introduced. Rebuild with the existing build variables to prepare the candidate; do not deploy without human review.
+
+Browser data uses only expense-tracker:interactive-demo:v1 in localStorage, with schema version 1, seed version 1, monotonic numeric transaction IDs, integer cents and a single transaction/budget snapshot. The browser fixture is checked against canonical backend category/sample literals in tests; Node/SQLite runtime code is never imported into browser assets. This version has no implicit migration: unsupported versions preserve their stored value and require an explicit Reset Demo choice.
+
+Successful writes require storage to succeed. Blocked storage or quota errors produce retryable UI errors without claiming a save. Corrupt or invalid records block data reads rather than silently reseeding; the notice and Reset Demo remain available. Reset confirmation replaces only the namespaced key, resets transactions and budgets atomically, and restores November 2026 in the initiating tab.
+
+Same-origin tabs share state. Web Locks serialize reads and mutations; storage events reload mounted views and dismiss stale editors while retaining another tab's selected month. Tabs on other months continue showing their selected month after a reset. Current HTTPS/localhost browsers supporting Web Locks are required; unsupported environments show a storage error. Independent profiles/devices do not share data, but people using the same profile do. Clearing browser storage and private-browsing restrictions can remove or prevent persistence. No account sync, authentication, multi-user finance service or real-data guarantee is provided. Use fictional information only.
+
+The historical verification sections above describe earlier read-only candidates. Current candidate evidence is recorded in [docs/INTERACTIVE_DEMO_VERIFICATION.md](docs/INTERACTIVE_DEMO_VERIFICATION.md); no live provider acceptance or deployment is implied.

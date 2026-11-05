@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:browser": "node test/browser/analytics.browser.mjs",
+    "test:browser:demo": "node test/browser/interactive-demo.browser.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

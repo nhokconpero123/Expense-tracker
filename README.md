@@ -26,9 +26,9 @@ Track income and expenses, manage monthly budgets, and explore spending patterns
 - **Backend:** Render Web Service
 - **Database:** SQLite
 
-The public demo uses fictional financial data in a read-only, in-memory database. The original local application supports transaction and budget management.
+The interactive portfolio build uses fictional financial data saved in browser-local storage. Visitors can manage transactions and budgets without sending writes to Render. The Render API remains read-only with in-memory SQLite; the original local application continues using writable persistent SQLite.
 
-> **Note:** The online demo is read-only. Creating, editing, and deleting records are available only in the local version.
+> **Review status:** Browser-local interactivity is implemented in this checkout and has not been deployed by this change. The currently published version may still show read-only controls.
 
 ## Features
 
@@ -179,7 +179,7 @@ Copy the root `.env.example` to **`backend/.env`**, not the repository root. Bac
 | `PORT` | `3001`; integer from 1 to 65535. |
 | `DATABASE_PATH` | `backend/data/expense-tracker.sqlite`; configured relative values resolve from `backend/`. |
 
-Local mode has no arbitrary HOST override. The separately opt-in hosted read-only mode and VITE_API_BASE_URL are described in [DEPLOYMENT.md](DEPLOYMENT.md); leave them unset for the original local workflow. If PORT changes, update the proxy target in `frontend/vite.config.ts` and use that API port in local URLs. Never put secrets into `VITE_*` variables: Vite exposes those values to browser code. The browser test runner separately accepts `CHROME_PATH` for a non-default Chrome installation; this is test tooling, not application configuration.
+Local mode has no arbitrary HOST override. The separately opt-in interactive browser demo, read-only hosted API, and VITE_API_BASE_URL are described in [DEPLOYMENT.md](DEPLOYMENT.md); leave them unset for the original local workflow. If PORT changes, update the proxy target in `frontend/vite.config.ts` and use that API port in local URLs. Never put secrets into `VITE_*` variables: Vite exposes those values to browser code. The browser test runner separately accepts `CHROME_PATH` for a non-default Chrome installation; this is test tooling, not application configuration.
 
 ## API and reporting behavior
 
@@ -288,9 +288,37 @@ Captured at a 1440-pixel desktop width; full-page images preserve the final rows
 - [Verification results](docs/VERIFICATION.md)
 
 
-## Prepared read-only public demo (not deployed)
 
-The local MVP remains writable on loopback by default. A separately opt-in public-demo mode now uses fictional November 2026 data in fresh query-only in-memory SQLite, blocks HTTP mutations server-side, and provides read-only frontend controls. Hosting preparation does not authorize publication. See [DEPLOYMENT.md](DEPLOYMENT.md) for the exact Render/Cloudflare Workers Static Assets settings, explicit flags, security boundaries and required post-deployment acceptance checks. Never expose the original local writable API.
+## Public Demo Deployment
 
+The existing public deployment is a portfolio demo. This candidate adds browser-local interactivity; publication remains a separate human action.
 
-Cloudflare Workers Git builds use `npm run build:cloudflare` from the repository root after installing frontend/root workspace dependencies. The root `wrangler.json` uploads only `frontend/dist` with SPA navigation fallback; it contains no Express entry point or SQLite binding. Set the public-demo flag and Render API origin as Cloudflare build variables, and follow the exact dashboard commands and CORS prerequisite in [DEPLOYMENT.md](DEPLOYMENT.md). Build alone does not deploy.
+- **Frontend:** Cloudflare Workers Static Assets
+- **Backend:** Render Web Service
+- **Public browser data:** Versioned localStorage with fictional November 2026 transactions and budgets
+- **Render database:** Read-only in-memory SQLite, independently protected
+
+The public demo provides access to dashboards, transactions,
+budgets, and spending analytics.
+
+For security, the public API blocks data modification requests.
+With VITE_PUBLIC_DEMO_MODE=true, visitors can create, update, and delete browser-local transactions and budgets. These operations never call Render write endpoints.
+
+The original local version remains a writable application
+intended for use on a trusted local machine.
+
+**Live Demo:** https://expense-tracker.nhokconpero123.workers.dev/
+
+### Interactive demo storage and reset
+
+Set VITE_PUBLIC_DEMO_MODE=true only for the public portfolio build. Every application data request then uses one browser-local repository, including categories, filtering, pagination, summaries, charts, and budgets. Initialization needs no Render connection. Without the flag, the existing Express API and Vite proxy retain full local CRUD behavior.
+
+The versioned key is expense-tracker:interactive-demo:v1. The initial November 2026 fixture contains 13 transactions, six budgets, $3,950.00 income, $2,155.00 expenses, and a $1,795.00 balance. Reloads preserve changes. Reset Demo asks for confirmation, then restores transactions and budgets together and returns the initiating tab to November 2026. It never resets local SQLite or unrelated browser storage.
+
+Data is not synced to an account or other devices. Independent browser profiles are separate; people and tabs using the same browser profile share this origin's demo data. Web Locks serialize mutations and storage events refresh other tabs, closing stale editors. HTTPS or localhost and a current browser with Web Locks are required. Clearing site storage removes changes; private browsing may limit persistence. Use fictional data only: this is not a production financial service.
+
+Invalid or incompatible stored data is preserved and shown as a recoverable error; reset is an explicit destructive choice. Storage quota or permission failures report that changes were not saved. There is no silent seed migration or memory-only success fallback. Details and verification are in [the interactive demo report](docs/INTERACTIVE_DEMO_VERIFICATION.md).
+
+Cloudflare still uses npm run build:cloudflare from the root with VITE_PUBLIC_DEMO_MODE=true and an exact HTTPS VITE_API_BASE_URL. The API origin remains a build-verifier requirement but the interactive repository makes no network API requests. Keep Render PUBLIC_DEMO_MODE=true and HOSTED_DEPLOYMENT behavior unchanged. See [DEPLOYMENT.md](DEPLOYMENT.md).
+
+Run npm.cmd run test:browser:demo --workspace frontend for the additional real-Chrome interactive workflow. Set CHROME_PATH if Chrome is installed elsewhere.

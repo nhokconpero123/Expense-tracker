@@ -22,35 +22,41 @@ describe('deployment transport', () => {
     'rejects unsafe API origin %s', async base => {
       const { apiUrl } = await import('./deployment'); expect(() => apiUrl('/api/categories', base)).toThrow();
     });
-  it.each(['POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'TRACE'])( 'never sends %s in frontend public-demo mode', async method => {
+  it.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'TRACE'])('never sends %s over the network in public-demo mode', async method => {
     vi.stubEnv('VITE_PUBLIC_DEMO_MODE', 'true');
+    vi.stubEnv('VITE_API_BASE_URL', 'https://expense-demo.onrender.com');
+    const values = new Map<string, string>();
+    vi.stubGlobal('window', { localStorage: { getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); } } });
+    vi.stubGlobal('navigator', { locks: { request: async (_key: string, operation: () => unknown) => operation() } });
     const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
     const { apiFetch } = await import('./deployment');
-    await expect(apiFetch('/api/transactions', { method })).rejects.toThrow('read-only');
+    const response = await apiFetch('/api/transactions', { method });
+    expect(response).toBeInstanceOf(Response);
     expect(fetcher).not.toHaveBeenCalled();
   });
-  it('keeps editing disabled and the fictional-data notice visible', async () => {
+  it('enables editing and explains browser-local fictional data', async () => {
     vi.stubEnv('VITE_PUBLIC_DEMO_MODE', 'true'); vi.resetModules();
     const { renderToStaticMarkup } = await import('react-dom/server');
     const { default: App } = await import('../App');
     const html = renderToStaticMarkup(<App />);
-    expect(html).toContain('Read-only portfolio demo.');
-    expect(html).toContain('November 2026');
+    expect(html).toContain('Interactive portfolio demo.');
+    expect(html).toContain('saved only in this browser');
+    expect(html).toContain('Reset Demo');
     const { BudgetCard } = await import('../components/BudgetCard');
     const card = renderToStaticMarkup(<BudgetCard item={{ categoryId: 4, categoryName: 'Food', month: '2026-11', amountCents: 100, spentCents: 50, remainingCents: 50, utilizationPercent: 50, status: 'under' }} onEdit={() => {}} onRemove={() => {}} />);
-    expect((card.match(/disabled=""/g) ?? []).length).toBe(2);
+    expect(card).not.toContain('disabled=""');
     const { MonthProvider } = await import('../context/MonthContext');
     const { Transactions } = await import('../pages/Transactions');
     const transactions = renderToStaticMarkup(<MonthProvider><Transactions /></MonthProvider>);
     const buttons = transactions.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? [];
-    expect(buttons.find(button => button.includes('Add Transaction'))).toContain('disabled=""');
+    expect(buttons.find(button => button.includes('Add Transaction'))).not.toContain('disabled=""');
     const { TransactionTable } = await import('../components/TransactionTable');
     const table = renderToStaticMarkup(<TransactionTable transactions={[{ id: 1, type: 'expense', amountCents: 100, categoryId: 4, categoryName: 'Food', date: '2026-11-01', note: 'Fictional', createdAt: '', updatedAt: '' }]}
       meta={{ page: 1, pageSize: 20, total: 1, totalPages: 1 }} isLoading={false} isFiltered={false}
       onPageChange={() => {}} onResetFilters={() => {}} onOpenAddModal={() => {}} />);
     for (const action of ['Edit transaction', 'Delete transaction']) {
-      expect((table.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? []).find(button => button.includes(action))).toContain('disabled=""');
+      expect((table.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? []).find(button => button.includes(action))).not.toContain('disabled=""');
     }
-
   });
 });

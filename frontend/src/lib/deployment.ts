@@ -1,3 +1,5 @@
+import { demoFetch } from './demoRepository';
+
 export const isPublicDemo = import.meta.env['VITE_PUBLIC_DEMO_MODE'] === 'true';
 
 export function apiUrl(path: string, base: string = import.meta.env['VITE_API_BASE_URL'] ?? ''): string {
@@ -12,9 +14,7 @@ export function apiUrl(path: string, base: string = import.meta.env['VITE_API_BA
 }
 
 export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  if (isPublicDemo && !['GET', 'HEAD'].includes(init?.method ?? 'GET')) {
-    return Promise.reject(new Error('This fictional public demo is read-only.'));
-  }
+  if (isPublicDemo) return demoFetch(path, init);
   const url = apiUrl(path);
   return fetch(url, url === path ? init : { ...init, credentials: 'omit' });
 }

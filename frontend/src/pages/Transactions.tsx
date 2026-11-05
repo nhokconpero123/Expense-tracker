@@ -1,4 +1,3 @@
-import { isPublicDemo } from '../lib/deployment';
 import { useEffect, useRef, useState } from 'react';
 import { AddTransactionDialog } from '../components/AddTransactionDialog';
 import { DeleteTransactionDialog } from '../components/DeleteTransactionDialog';
@@ -182,7 +181,6 @@ export function Transactions() {
           <button
             type="button"
             onClick={handleOpenAdd}
-            disabled={isPublicDemo}
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

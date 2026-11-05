@@ -33,7 +33,9 @@ for (const match of index.matchAll(/(?:src|href)="(\/assets\/[^"?#]+)"/g)) {
   assert(files.includes(match[1].slice(1)), `Missing referenced asset: ${match[1]}`);
 }
 const javascript = (await Promise.all(files.filter(file => file.endsWith('.js')).map(file => readFile(path.join(directory, file), 'utf8')))).join('\n');
-assert(javascript.includes(base), 'Built JavaScript is missing the configured API origin');
-assert(javascript.includes('Read-only portfolio demo.'), 'Built JavaScript is missing the public-demo notice');
+assert(!javascript.includes(base), 'Interactive demo must not retain the configured network API transport');
+assert(javascript.includes('Interactive portfolio demo.'), 'Built JavaScript is missing the interactive-demo notice');
+assert(javascript.includes('expense-tracker:interactive-demo:v1'), 'Built JavaScript is missing browser-local demo storage');
+assert(!/better-sqlite3|node:sqlite|node:fs|node:http|DATABASE_PATH|PUBLIC_DEMO_HOST/.test(javascript), 'Backend runtime or configuration leaked into browser assets');
 console.log(JSON.stringify({ assetsOnly: true, directory: config.assets.directory, spaFallback: config.assets.not_found_handling,
   publicDemo: true, apiOrigin: base, files }, null, 2));

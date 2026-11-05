@@ -1,4 +1,3 @@
-import { isPublicDemo } from '../lib/deployment';
 import type { BudgetItem } from '../lib/budgetApi';
 import { formatCentsToUsd } from '../lib/money';
 
@@ -35,11 +34,11 @@ export function BudgetCard({ item, onEdit, onRemove, disabled = false }: {
         </div>
       )}
       <div className="mt-6 flex flex-wrap gap-2">
-        <button type="button" onClick={onEdit} disabled={disabled || isPublicDemo} className={budgetButtonClass}
+        <button type="button" onClick={onEdit} disabled={disabled} className={budgetButtonClass}
           aria-label={`${item.amountCents === null ? 'Set' : 'Edit'} budget for ${item.categoryName}`}>
           {item.amountCents === null ? 'Set budget' : 'Edit budget'}
         </button>
-        {item.amountCents !== null && <button type="button" onClick={onRemove} disabled={disabled || isPublicDemo}
+        {item.amountCents !== null && <button type="button" onClick={onRemove} disabled={disabled}
           className={`${budgetButtonClass} text-rose-300`} aria-label={`Remove budget for ${item.categoryName}`}>Remove</button>}
       </div>
     </article>

@@ -1,5 +1,6 @@
 import { isPublicDemo } from '../lib/deployment';
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { DEMO_EVENT } from '../lib/demoRepository';
 import { getCurrentLocalMonth, isValidMonth, shiftMonth } from '../lib/date';
 
 export interface MonthContextValue {
@@ -27,6 +28,12 @@ export function MonthProvider({ children, initialMonth }: MonthProviderProps) {
     return isPublicDemo ? '2026-11' : getCurrentLocalMonth();
   });
   const [summaryRevision, setSummaryRevision] = useState<number>(0);
+  useEffect(() => {
+    if (!isPublicDemo) return;
+    const reset = () => { setMonthState('2026-11'); setSummaryRevision(value => value + 1); };
+    window.addEventListener(DEMO_EVENT, reset);
+    return () => window.removeEventListener(DEMO_EVENT, reset);
+  }, []);
 
   const setMonth = (newMonth: string) => {
     if (isValidMonth(newMonth)) {
