@@ -323,3 +323,20 @@ Invalid or incompatible stored data is preserved and shown as a recoverable erro
 Cloudflare still uses npm run build:cloudflare from the root with VITE_PUBLIC_DEMO_MODE=true and an exact HTTPS VITE_API_BASE_URL. The API origin remains a build-verifier requirement but the interactive repository makes no network API requests. Keep Render PUBLIC_DEMO_MODE=true and HOSTED_DEPLOYMENT behavior unchanged. See [DEPLOYMENT.md](DEPLOYMENT.md).
 
 Run npm.cmd run test:browser:demo --workspace frontend for the additional real-Chrome interactive workflow. Set CHROME_PATH if Chrome is installed elsewhere.
+
+### CSV export (T15)
+
+On Transactions, select the desired filters and choose **Export CSV**. Export includes all matching transactions across pages, sorted by date descending then ID descending. It preserves the table's current page, filters and selected month. The local application reads the existing Express/SQLite API; the interactive demo reads its current browser-local data without contacting the hosted API. Export itself performs no transaction/budget writes.
+
+The UTF-8 CSV has a BOM, CRLF records and columns Date, Type, Category, Amount (USD), Note. Amount is an unsigned exact decimal USD value; Type indicates income or expense. Quotes and line breaks are preserved. Risky leading characters in Category/Note text receive an apostrophe prefix to mitigate formula interpretation on initial spreadsheet import. The prefix intentionally changes exported text, not stored records. Spreadsheet save/re-open behavior may remove protections; this is not a universal spreadsheet round-trip guarantee. See [OWASP CSV Injection](https://community.owasp.org/attacks/CSV_Injection).
+
+Exports use sequential requests of at most 100 rows and are limited to 10,000 matching transactions and 16 MiB of encoded CSV. Narrow filters if a limit is exceeded; results are never silently truncated. Progress and Cancel are available. Zero results display a message without downloading a file. Request/storage errors or detected inconsistent counts, IDs, ordering or first-page content stop the export and show retry guidance. Changing filters, performing a transaction mutation, or leaving the page cancels an obsolete export. Offset pagination does not provide an atomic snapshot across concurrent external writes; undetectable same-count changes remain a limitation.
+
+Run the isolated Chrome CSV checks after a local build:
+
+```powershell
+npm.cmd run build
+node frontend/test/browser/csv-export.browser.mjs
+```
+
+The runner uses fresh temporary profiles, synthetic browser storage and in-memory SQLite on loopback, and records real downloads/screenshots plus console/network/listener evidence. It does not start the development backend or open personal data. Test reports and exact evidence references are in `docs/automation/tasks/T15-csv-export/`.

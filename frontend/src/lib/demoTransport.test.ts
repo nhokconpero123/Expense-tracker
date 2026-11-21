@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Transaction } from './api';
 
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.resetModules(); });
 function browser() {
@@ -17,6 +18,20 @@ function browser() {
   return { values, storage, request, network };
 }
 describe('interactive demo through existing application clients', () => {
+  it('exports fresh filtered records across pages after CRUD without any network fallback', async () => {
+    const { network } = browser(); const api = await import('./api');
+    const { collectTransactions } = await import('./transactionExport');
+    const food = (await api.fetchCategories()).find(c => c.name === 'Food')!.id;
+    const created: Transaction[] = [];
+    for (let index = 0; index < 105; index++) created.push(await api.createTransaction({ type: 'expense', categoryId: food,
+      amountCents: index + 1, date: '2026-11-30', note: `Q%_\\ export ${index}` }));
+    await api.updateTransaction(created[0]!.id, { type: 'expense', categoryId: food, amountCents: 1234, date: '2026-11-30', note: 'Q%_\\ edited 日本語' });
+    await api.deleteTransaction(created[1]!.id);
+    const rows = await collectTransactions({ type: 'expense', categoryId: food, startDate: '2026-11-30', endDate: '2026-11-30', q: ' Q%_\\ ', page: 2 }, new AbortController().signal);
+    expect(rows).toHaveLength(104); expect(rows[0]!.id).toBe(created.at(-1)!.id);
+    expect(rows.find(row => row.id === created[0]!.id)).toMatchObject({ amountCents: 1234, note: 'Q%_\\ edited 日本語' });
+    expect(rows.some(row => row.id === created[1]!.id)).toBe(false); expect(network).not.toHaveBeenCalled();
+  });
   it('keeps transactions, budgets and all summary views on the same local data with no network fallback', async () => {
     const { network } = browser();
     const api = await import('./api'); const budgets = await import('./budgetApi');
