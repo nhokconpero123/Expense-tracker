@@ -3,6 +3,7 @@ import { AddTransactionDialog } from '../components/AddTransactionDialog';
 import { DeleteTransactionDialog } from '../components/DeleteTransactionDialog';
 import { TransactionFiltersBar } from '../components/TransactionFiltersBar';
 import { TransactionTable } from '../components/TransactionTable';
+import { TransactionExport } from '../components/TransactionExport';
 import { INITIAL_FILTERS, useTransactions } from '../hooks/useTransactions';
 import type { CreateTransactionPayload, Transaction } from '../lib/api';
 
@@ -153,7 +154,8 @@ export function Transactions() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <TransactionExport filters={filters} />
           {/* Refresh List Button */}
           <button
             type="button"

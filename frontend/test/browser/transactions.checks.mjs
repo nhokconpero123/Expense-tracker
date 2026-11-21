@@ -132,7 +132,7 @@ export async function runTransactionChecks({ command, evaluate, waitFor, key, ch
       assert.equal(await evaluate(warning), true);
       await configure('list', 'success'); await click('Retry'); await waitFor(`!(${warning})`);
       assert.equal(await count(method), 1);
-      assert.equal(await evaluate("document.querySelector('main [role=status]')?.textContent.includes('successfully')"), true);
+      assert.equal(await evaluate("[...document.querySelectorAll('main [role=status]')].some(status=>status.textContent.includes('successfully'))"), true);
     });
   }
   await check('older refresh completion cannot clear a newer mutation refresh warning', async () => {
@@ -152,7 +152,7 @@ export async function runTransactionChecks({ command, evaluate, waitFor, key, ch
     await open('create'); await fill(); await configure('list', 'error'); await save(); await closed(); await waitFor(warning);
     await configure('list', 'success'); await click('Retry'); await waitFor(`!(${warning})`);
     await evaluate('new Promise(resolve=>setTimeout(resolve,5100))');
-    assert.equal(await evaluate("document.querySelector('main [role=status]')?.textContent.includes('saved successfully')"), true);
+    assert.equal(await evaluate("[...document.querySelectorAll('main [role=status]')].some(status=>status.textContent.includes('saved successfully'))"), true);
     assert.equal(await count('POST'), 2);
   });
   await check('delete last row of page adjusts to a valid page without duplicate reload', async () => {

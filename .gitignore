@@ -1,7 +1,8 @@
+
 # Dependencies
 node_modules/
 
-# Build output & caches
+# Build output and caches
 dist/
 build/
 out/
@@ -19,16 +20,15 @@ npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Env & secrets
+# Environment and secrets
 .env
 .env.*
 *.pem
 *.key
 *.p12
 *.pfx
-.nvmrc
 
-# Databases & local data
+# Databases and local data
 *.db
 *.db-*
 *.sqlite
@@ -45,7 +45,7 @@ blob-report/
 screenshots/
 traces/
 
-# Editor / OS
+# Editor and OS
 .vscode/
 .idea/
 .DS_Store
@@ -58,23 +58,26 @@ nul
 tmp/
 temp/
 
-# AI agent working dirs
+# Local AI agent files
+AGENTS.md
 .agents/
 Agents/
+skills/
+.codex/
+.agent/
+.agent-memory/
+.ai-memory/
 
-# Docs: keep only verification files
-docs/*
-!docs/*_VERIFICATION.md
-.vscode/
-AGENTS.md
-playwright-report/
-test-results/
-screenshots/
+# Local AI automation
+/docs/automation/
 
-# Portfolio screenshots: allow only the four reviewed application captures.
-!docs/screenshots/
-docs/screenshots/*
-!docs/screenshots/dashboard.png
-!docs/screenshots/transactions.png
-!docs/screenshots/budgets.png
-!docs/screenshots/analytics.png
+# Project documents
+# Keep only reviewed verification reports and screenshots
+/docs/*
+!/docs/*_VERIFICATION.md
+!/docs/screenshots/
+/docs/screenshots/*
+!/docs/screenshots/dashboard.png
+!/docs/screenshots/transactions.png
+!/docs/screenshots/budgets.png
+!/docs/screenshots/analytics.png
