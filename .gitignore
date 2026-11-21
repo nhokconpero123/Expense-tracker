@@ -67,6 +67,7 @@ skills/
 .agent/
 .agent-memory/
 .ai-memory/
+/scripts/learning-memory/
 
 # Local AI automation
 /docs/automation/
