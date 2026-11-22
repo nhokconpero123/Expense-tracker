@@ -340,3 +340,24 @@ node frontend/test/browser/csv-export.browser.mjs
 ```
 
 The runner uses fresh temporary profiles, synthetic browser storage and in-memory SQLite on loopback, and records real downloads/screenshots plus console/network/listener evidence. It does not start the development backend or open personal data. Test reports and exact evidence references are in `docs/automation/tasks/T15-csv-export/`.
+
+### Continuous integration
+
+[CI](.github/workflows/ci.yml) defines an independent **Quality checks** job for pull requests targeting `main` and pushes to `main`. It uses Ubuntu 24.04, Node.js 24.19.0 and npm 11.17.0, and verifies both tool versions explicitly. Checkout and Node setup use pinned major action versions. Superseded runs are cancelled; permissions are limited to reading repository contents. This workflow performs no deployment and needs no custom secrets or Cloudflare credentials. Existing Cloudflare checks remain separate.
+
+The job checks tracked files for private agent instructions/memory, tests that guard, then runs these root workspace commands as separate required steps:
+
+```sh
+node scripts/ci/check-private-files.mjs
+node --test --test-reporter=tap scripts/ci/check-private-files.test.mjs
+npm ci
+npm run typecheck
+npm test
+npm run build
+```
+
+`npm ci` uses the committed root lockfile. The tests use isolated test databases; CI never starts the development server or opens a personal database. A failing step fails the job. The private-file guard checks the Git index, so ignored or untracked local instructions are allowed while force-tracked private paths fail. Keep agent instructions, skills, automation notes and learning-memory tooling local. No private logs or screenshots are uploaded by this job.
+
+Browser CI is deferred to a separate milestone. The existing Chrome suites accept `CHROME_PATH`, but their listener inspection requires Windows PowerShell, CIM and TCP ownership inspection. Changing the executable path alone does not make them compatible with this Ubuntu job. Vitest runs in Node and does not establish real-browser coverage. Run the documented Chrome suites locally on supported Windows environments when changing UI behavior; this CI configuration makes no claim that those suites ran on GitHub.
+
+After opening a PR, inspect the actual **CI / Quality checks** result and its logs. Local validation does not prove a hosted run passed. Repository administrators may separately configure branch protection; this workflow does not enforce merge policy or merge PRs.
