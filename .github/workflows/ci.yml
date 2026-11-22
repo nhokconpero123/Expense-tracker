@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.19.0'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install compatible npm
+        run: npm install --global npm@11.17.0
+
+      - name: Verify toolchain
+        run: |
+          node --version
+          npm --version
+          node -e "require('node:assert/strict').equal(process.version, 'v24.19.0')"
+          test "$(npm --version)" = "11.17.0"
+
+      - name: Reject tracked private agent files
+        run: node scripts/ci/check-private-files.mjs
+
+      - name: Test private-file guard
+        run: node --test --test-reporter=tap scripts/ci/check-private-files.test.mjs
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Frontend and backend tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
